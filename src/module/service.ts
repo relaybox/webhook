@@ -1,8 +1,6 @@
 import { Logger } from 'winston';
-import { RedisClient } from '@/lib/redis';
 import { PoolClient } from 'pg';
-import { createHmac, sign } from 'crypto';
-import * as repository from './repository';
+import { createHmac } from 'crypto';
 import * as db from './db';
 import { RegisteredWebhook, WebhookEvent, WebhookPayload } from './types';
 
