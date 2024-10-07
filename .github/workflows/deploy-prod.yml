@@ -1,0 +1,112 @@
+name: Deploy production
+
+on:
+  release:
+    types:
+      - published
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  APP_NAME: relaybox
+  CLUSTER_NAME: core-services
+  SERVICE_NAME: webhook
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/run-tests
+
+  build-push-ecr:
+    name: Push
+    uses: ./.github/workflows/build-push-ecr.yml
+    needs: test
+    with:
+      environment: production
+      service-name: webhook
+    secrets: inherit
+
+  deploy-ecs:
+    name: Deploy
+    uses: ./.github/workflows/deploy-ecs.yml
+    needs: build-push-ecr
+    with:
+      environment: production
+      ecr-image: ${{ needs.build-push-ecr.outputs.ecr-image }}
+      cluster-name: core-services
+      service-name: webhook
+      cluster-suffix: 9pkS9BJE3t40
+      service-suffix: HcnXKEogkl4w
+    secrets: inherit
+
+  publish-multi-platform-image:
+    name: Publish / amd64 / arm64
+    runs-on: ubuntu-latest
+    needs: deploy-ecs
+    environment:
+      name: production
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract Version from Tag
+        id: extract-version
+        uses: ./.github/actions/extract-version
+
+      - name: Update Package Version
+        run: |
+          npm version ${{ steps.extract-version.outputs.version }} --no-git-tag-version
+
+      - name: Set Up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: image=moby/buildkit:buildx-stable-1
+
+      - name: Build and push multi-platform image
+        id: build-image
+        run: |
+          npm ci
+          npm run build
+          docker buildx create --use
+          docker buildx build \
+            --platform linux/amd64,linux/arm64/v8 \
+            -t relaybox/${{ env.SERVICE_NAME }}:${{ steps.extract-version.outputs.version }} \
+            -t relaybox/${{ env.SERVICE_NAME }}:latest \
+            --push .
+
+  update-package-version:
+    name: Bump version
+    runs-on: ubuntu-latest
+    needs: deploy-ecs
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Extract Version from Tag
+        id: extract-version
+        uses: ./.github/actions/extract-version
+
+      - name: Update Package Version
+        run: |
+          npm version ${{ steps.extract-version.outputs.version }} --no-git-tag-version
+
+      - name: Commit Changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'chore: update package version [skip ci]'
+          commit_author: GitHub Actions <actions@github.com>
+          branch: main

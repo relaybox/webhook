@@ -1,0 +1,33 @@
+{
+  "name": "relaybox-webhook",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "TZ=UTC LOGGING_ENABLED=false nodemon",
+    "build": "node build.config.js",
+    "test": "vitest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bullmq": "^5.7.15",
+    "dotenv": "^16.4.5",
+    "pg": "^8.12.0",
+    "redis": "^4.6.14",
+    "uuid": "^10.0.0",
+    "winston": "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.12",
+    "@types/pg": "^8.11.6",
+    "@types/redis": "^4.0.11",
+    "@types/uuid": "^9.0.8",
+    "@vitest/coverage-v8": "^1.6.0",
+    "esbuild": "^0.21.3",
+    "nodemon": "^3.1.0",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}

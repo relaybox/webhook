@@ -1,0 +1,36 @@
+name: Deploy development
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/run-tests
+
+  build-push-ecr:
+    name: Push
+    uses: ./.github/workflows/build-push-ecr.yml
+    needs: test
+    with:
+      environment: development
+      service-name: webhook
+    secrets: inherit
+
+  deploy-ecs:
+    name: Deploy
+    uses: ./.github/workflows/deploy-ecs.yml
+    needs: build-push-ecr
+    with:
+      environment: development
+      ecr-image: ${{ needs.build-push-ecr.outputs.ecr-image }}
+      cluster-name: core-services
+      service-name: webhook
+      cluster-suffix: g8M6HWc0Cdph
+      service-suffix: nRbrd4FYxrs8
+    secrets: inherit
