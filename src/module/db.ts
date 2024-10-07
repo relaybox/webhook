@@ -1,13 +1,17 @@
 import { PoolClient, QueryResult } from 'pg';
-import { Logger } from 'winston';
+import { WebhookEvent } from './types';
 
-export async function getRegisteredWebhooksByAppPid(
+export async function getRegisteredWebhooksByEvent(
   pgClient: PoolClient,
-  appPid: string
+  appPid: string,
+  event: WebhookEvent
 ): Promise<QueryResult> {
   const query = `
-    SELECT * FROM application_webhooks WHERE "appPid" = $1;
+    SELECT * FROM application_webhooks aw
+    LEFT JOIN application_webhooks_filters awf ON aw.id = awf."webhookId"
+    WHERE "appPid" = $1 
+    AND event = $2;
   `;
 
-  return pgClient.query(query, [appPid]);
+  return pgClient.query(query, [appPid, event]);
 }

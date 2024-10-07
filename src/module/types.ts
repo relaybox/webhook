@@ -6,7 +6,7 @@ export enum WebhookEvent {
 
 export interface WebhookPayload {
   id: string;
-  event: string;
+  event: WebhookEvent;
   data: any;
   session: Session;
   filterAttributes?: Record<string, unknown>;
@@ -14,6 +14,9 @@ export interface WebhookPayload {
 
 export interface RegisteredWebhook {
   id: string;
+  event: WebhookEvent;
+  signingKey: string;
+  url: string;
 }
 
 export interface AuthUser {
