@@ -28,6 +28,6 @@
     "esbuild": "^0.21.3",
     "nodemon": "^3.1.0",
     "typescript": "^5.4.5",
-    "vitest": "^1.6.0"
+    "vitest": "^2.1.2"
   }
 }

@@ -2,6 +2,7 @@ import { Job, Worker } from 'bullmq';
 import { getLogger } from '@/util/logger.util';
 import { connectionOptionsIo, getRedisClient } from '@/lib/redis';
 import { getPgPool } from '@/lib/pg';
+import { JobName, router } from './router';
 
 const QUEUE_NAME = 'webhook';
 
@@ -35,7 +36,7 @@ async function handler({ id, name, data }: Job) {
 
   logger.info(`Processing job ${id} (${name})`, { data });
 
-  console.log(id, name, data);
+  await router(pgPool, redisClient, name as JobName, data);
 }
 
 export async function startWorker() {

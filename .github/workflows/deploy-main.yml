@@ -3,7 +3,7 @@ name: Deploy development
 on:
   push:
     branches:
-      - main
+      - none
 
 jobs:
   test:
