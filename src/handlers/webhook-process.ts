@@ -26,7 +26,7 @@ export async function handler(
 
     logger.debug(`Registered webhooks found for app: ${appPid}`, { registeredWebhooks });
 
-    await enqueueRegisteredWebhooks(logger, registeredWebhooks, data);
+    await enqueueRegisteredWebhooks(logger, registeredWebhooks, payload);
   } catch (err: any) {
     logger.error(`Failed to process webhook event`, { err });
     throw err;

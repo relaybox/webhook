@@ -70,7 +70,7 @@ export async function getRegisteredWebhooksByEvent(
 export async function enqueueRegisteredWebhooks(
   logger: Logger,
   registeredWebhooks: RegisteredWebhook[],
-  data: WebhookPayload
+  payload: WebhookPayload
 ): Promise<Job[]> {
   logger.debug(`Enqueuing ${registeredWebhooks.length} webhook(s)`);
 
@@ -83,7 +83,7 @@ export async function enqueueRegisteredWebhooks(
 
       const jobData = {
         webhook,
-        data
+        payload
       };
 
       return webhookDispatchQueue.add(WebhookDispatchJobName.WEBHOOK_DISPATCH, jobData, jobConfig);
@@ -94,9 +94,10 @@ export async function enqueueRegisteredWebhooks(
 export async function dispatchWebhook(
   logger: Logger,
   webhook: RegisteredWebhook,
-  data: WebhookPayload
+  payload: WebhookPayload
 ): Promise<WebhookResponse> {
   const { url, signingKey } = webhook;
+  const { data } = payload;
 
   try {
     const stringToSign = JSON.stringify(data);
@@ -110,7 +111,7 @@ export async function dispatchWebhook(
     const requestOptions = {
       method: 'POST',
       headers: headers,
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
       signal: AbortSignal.timeout(DEFAULT_REQUEST_TIMEOUT_MS)
     };
 
@@ -124,7 +125,7 @@ export async function dispatchWebhook(
       status: response.status,
       statusText: response.statusText
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     logger.error(`Failed to dispatch webhook ${url}`, { err });
     throw err;
   }
