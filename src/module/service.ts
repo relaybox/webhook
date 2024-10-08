@@ -1,17 +1,18 @@
 import { Logger } from 'winston';
+import { Job } from 'bullmq';
 import { PoolClient } from 'pg';
 import { createHmac } from 'crypto';
 import * as db from './db';
 import { RegisteredWebhook, WebhookEvent, WebhookPayload, WebhookResponse } from './types';
-import webhookDispatchQueue, { defaultJobConfig, WebhookDispatchJobName } from './queue';
-import { Job } from 'bullmq';
+import webhookDispatchQueue, { defaultJobConfig, WebhookDispatchJobName } from './queues/dispatch';
 
 const SIGNATURE_HASHING_ALGORITHM = 'sha256';
 const SIGNATURE_BUFFER_ENCODING = 'utf-8';
 const SIGNTURE_DIGEST = 'hex';
 const DEFAULT_REQUEST_TIMEOUT_MS = 10000;
+const RETRYABLE_ERROR_CODES = [500, 429];
 
-export function generateHmacSignature(stringToSign: string, signingKey: string): string {
+export function generateRequestSignature(stringToSign: string, signingKey: string): string {
   if (!stringToSign || !signingKey) {
     throw new Error(`Please provide string to sign and signing key`);
   }
@@ -35,12 +36,12 @@ export async function getRegisteredWebhooksByEvent(
   event: WebhookEvent
 ): Promise<RegisteredWebhook[] | undefined> {
   return [
-    // {
-    //   id: '1',
-    //   event: WebhookEvent.ROOM_JOIN,
-    //   signingKey: '123',
-    //   url: 'http://localhost:4000/webhook/event'
-    // },
+    {
+      id: '1',
+      event: WebhookEvent.ROOM_JOIN,
+      signingKey: '123',
+      url: 'http://localhost:4000/webhook/event'
+    },
     {
       id: '00000000-0000-0000-000000000000',
       event: WebhookEvent.ROOM_JOIN,
@@ -99,7 +100,7 @@ export async function dispatchWebhook(
 
   try {
     const stringToSign = JSON.stringify(data);
-    const requestSignature = generateHmacSignature(stringToSign, signingKey);
+    const requestSignature = generateRequestSignature(stringToSign, signingKey);
 
     const headers = {
       'Content-Type': 'application/json',
@@ -116,8 +117,8 @@ export async function dispatchWebhook(
     const response = await fetch(url, requestOptions);
 
     if (!response.ok) {
-      if (response.status >= 500 || response.status === 429) {
-        throw new Error(`Retryable HTTP error! status: ${response.status}`);
+      if (RETRYABLE_ERROR_CODES.includes(response.status)) {
+        throw new Error(`Retryable HTTP error, status: ${response.status}`);
       }
     }
 
@@ -126,7 +127,7 @@ export async function dispatchWebhook(
       statusText: response.statusText
     };
   } catch (err: any) {
-    logger.error(`Failed to dispatch webhook ${url}`);
+    logger.error(`Failed to dispatch webhook ${url}`, { err });
     throw err;
   }
 }

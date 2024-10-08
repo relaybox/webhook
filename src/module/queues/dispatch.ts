@@ -2,7 +2,9 @@ import { Queue } from 'bullmq';
 import { connectionOptionsIo } from '@/lib/redis';
 
 const WEBHOOK_DISPATCH_QUEUE_NAME = 'webhook-dispatch';
-const FAILED_JOB_BACKOFF_RATE_MS = 200;
+const RETRY_BACKOFF_RATE_MS = 200;
+const RETRY_MAX_ATTEMPTS = 5;
+const RETRY_BACKOFF_TYPE = 'exponential';
 
 const defaultQueueConfig = {
   streams: {
@@ -17,16 +19,14 @@ export enum WebhookDispatchJobName {
 }
 
 export const defaultJobConfig = {
-  attempts: 10,
+  attempts: RETRY_MAX_ATTEMPTS,
   backoff: {
-    type: 'exponential',
-    delay: FAILED_JOB_BACKOFF_RATE_MS
+    type: RETRY_BACKOFF_TYPE,
+    delay: RETRY_BACKOFF_RATE_MS
   },
   removeOnComplete: true,
   removeOnFail: true
 };
-
-console.log('init qeueu');
 
 const webhookDispatchQueue = new Queue(WEBHOOK_DISPATCH_QUEUE_NAME, {
   connection: connectionOptionsIo,
