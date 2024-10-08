@@ -4,6 +4,8 @@ import { Logger } from 'winston';
 import { connectionOptionsIo, RedisClient } from '@/lib/redis';
 import { JobName, router } from './router';
 
+const WORKER_CONCURRENCY = 1;
+
 async function handler(logger: Logger, pgPool: Pool, redisClient: RedisClient, job: Job) {
   const { id, name, data } = job;
 
@@ -16,11 +18,13 @@ export function startWorker(
   logger: Logger,
   pgPool: Pool,
   redisClient: RedisClient,
-  queueName: string
+  queueName: string,
+  concurrency = WORKER_CONCURRENCY
 ): Worker {
   const worker = new Worker(queueName, (job: Job) => handler(logger, pgPool, redisClient, job), {
     connection: connectionOptionsIo,
-    prefix: 'queue'
+    prefix: 'queue',
+    concurrency
   });
 
   worker.on('failed', (job: Job | undefined, err: Error, prev: string) => {

@@ -19,7 +19,7 @@ let dispatchWorker: Worker | null = null;
 async function startService() {
   await initializeConnections();
 
-  processWorker = startWorker(logger, pgPool, redisClient, PROCESS_WORKER_NAME);
+  processWorker = startWorker(logger, pgPool, redisClient, PROCESS_WORKER_NAME, 10);
   dispatchWorker = startWorker(logger, pgPool, redisClient, DISPATCH_WORKER_NAME);
 }
 
