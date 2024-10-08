@@ -12,6 +12,11 @@ export interface WebhookPayload {
   filterAttributes?: Record<string, unknown>;
 }
 
+export interface WebhookResponse {
+  status: number;
+  statusText: string;
+}
+
 export interface RegisteredWebhook {
   id: string;
   event: WebhookEvent;
