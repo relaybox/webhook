@@ -10,14 +10,17 @@ const logger = getLogger('webhook');
 const pgPool = getPgPool();
 const redisClient = getRedisClient();
 
+const PROCESS_WORKER_NAME = 'webhook-process';
+const DISPATCH_WORKER_NAME = 'webhook-dispatch';
+
 let processWorker: Worker | null = null;
 let dispatchWorker: Worker | null = null;
 
 async function startService() {
   await initializeConnections();
 
-  processWorker = startWorker(logger, pgPool!, redisClient, 'webhook-process');
-  dispatchWorker = startWorker(logger, pgPool!, redisClient, 'webhook-dispatch');
+  processWorker = startWorker(logger, pgPool, redisClient, PROCESS_WORKER_NAME);
+  dispatchWorker = startWorker(logger, pgPool, redisClient, DISPATCH_WORKER_NAME);
 }
 
 async function initializeConnections(): Promise<void> {

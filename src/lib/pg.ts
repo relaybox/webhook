@@ -14,7 +14,7 @@ const ssl = {
   ...(!DB_PROXY_ENABLED && { ca: RDS_ROOT_CERTIFICATE })
 };
 
-export function getPgPool(): Pool | null {
+export function getPgPool(): Pool {
   if (pgPool) {
     return pgPool;
   }
@@ -44,10 +44,10 @@ export function getPgPool(): Pool | null {
 export async function cleanupPgPool(): Promise<void> {
   if (pgPool) {
     try {
-      logger.info('Closing PG pool');
+      logger.info('Closing pg pool');
       await pgPool.end();
     } catch (err) {
-      logger.error('Error ending PG pool', { err });
+      logger.error('Error ending pg pool', { err });
     } finally {
       pgPool = null;
     }

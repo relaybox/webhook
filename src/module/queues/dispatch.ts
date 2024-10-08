@@ -3,7 +3,7 @@ import { connectionOptionsIo } from '@/lib/redis';
 
 const WEBHOOK_DISPATCH_QUEUE_NAME = 'webhook-dispatch';
 const RETRY_BACKOFF_RATE_MS = 200;
-const RETRY_MAX_ATTEMPTS = 5;
+const RETRY_MAX_ATTEMPTS = 10;
 const RETRY_BACKOFF_TYPE = 'exponential';
 
 const defaultQueueConfig = {

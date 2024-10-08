@@ -116,10 +116,8 @@ export async function dispatchWebhook(
 
     const response = await fetch(url, requestOptions);
 
-    if (!response.ok) {
-      if (RETRYABLE_ERROR_CODES.includes(response.status)) {
-        throw new Error(`Retryable HTTP error, status: ${response.status}`);
-      }
+    if (!response.ok && RETRYABLE_ERROR_CODES.includes(response.status)) {
+      throw new Error(`Retryable HTTP error, status: ${response.status}`);
     }
 
     return {
