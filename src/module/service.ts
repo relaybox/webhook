@@ -29,39 +29,20 @@ export function generateRequestSignature(stringToSign: string, signingKey: strin
   }
 }
 
-export async function getRegisteredWebhooksByEvent(
+export async function getWebhooksByAppAndEvent(
   logger: Logger,
   pgClient: PoolClient,
   appPid: string,
   event: WebhookEvent
 ): Promise<RegisteredWebhook[] | undefined> {
-  return [
-    {
-      id: '1',
-      event: WebhookEvent.ROOM_JOIN,
-      signingKey: '123',
-      url: 'http://localhost:4000/webhook/event'
-    },
-    {
-      id: '00000000-0000-0000-000000000000',
-      event: WebhookEvent.ROOM_JOIN,
-      signingKey: '123',
-      url: 'http://localhost:4000/webhook/event'
-    }
-  ];
-
   try {
-    const { rows: registeredWebhooks } = await db.getRegisteredWebhooksByEvent(
-      pgClient,
-      appPid,
-      event
-    );
+    const { rows: webhooks } = await db.getWebhooksByAppAndEvent(pgClient, appPid, event);
 
-    if (!registeredWebhooks.length) {
-      logger.debug(`No registered webhooks found for appPid ${appPid}`);
+    if (!webhooks.length) {
+      logger.debug(`No registered webhooks found for appPid ${appPid}, ${event}`);
     }
 
-    return registeredWebhooks;
+    return webhooks;
   } catch (err: any) {
     throw new Error(`Failed to get registered webhooks, ${err.message}`);
   }

@@ -2,7 +2,7 @@ import { Pool } from 'pg';
 import { RedisClient } from '@/lib/redis';
 import { getLogger } from '@/util/logger.util';
 import { WebhookPayload } from '@/module/types';
-import { enqueueRegisteredWebhooks, getRegisteredWebhooksByEvent } from '@/module/service';
+import { enqueueRegisteredWebhooks, getWebhooksByAppAndEvent } from '@/module/service';
 
 const logger = getLogger('webhook-process');
 
@@ -17,14 +17,16 @@ export async function handler(
     const { data, session, event, filterAttributes } = payload;
     const { appPid } = session;
 
-    const registeredWebhooks = await getRegisteredWebhooksByEvent(logger, pgClient, appPid, event);
+    const registeredWebhooks = await getWebhooksByAppAndEvent(logger, pgClient, appPid, event);
 
     if (!registeredWebhooks) {
-      logger.debug(`No registered webhooks found for app: ${appPid}`);
+      logger.debug(`No registered webhooks found for app ${appPid}`);
       return;
     }
 
-    logger.debug(`Registered webhooks found for app: ${appPid}`, { registeredWebhooks });
+    logger.debug(`${registeredWebhooks.length} webhook(s) found for app ${appPid}`, {
+      registeredWebhooks
+    });
 
     await enqueueRegisteredWebhooks(logger, registeredWebhooks, payload);
   } catch (err: any) {
