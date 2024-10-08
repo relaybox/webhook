@@ -1,14 +1,24 @@
 import 'dotenv/config';
 
-import { startProcessWorker, stopProcessWorker } from '@/module/workers/process';
-import { startDispatchWorker, stopDispatchWorker } from '@/module/workers/dispatch';
+import { Worker } from 'bullmq';
 import { getLogger } from '@/util/logger.util';
 import { cleanupRedisClient, getRedisClient } from '@/lib/redis';
 import { cleanupPgPool, getPgPool } from '@/lib/pg';
+import { startWorker, stopWorker } from './module/worker';
 
-const logger = getLogger('webhook-service');
+const logger = getLogger('webhook');
 const pgPool = getPgPool();
 const redisClient = getRedisClient();
+
+let processWorker: Worker | null = null;
+let dispatchWorker: Worker | null = null;
+
+async function startService() {
+  await initializeConnections();
+
+  processWorker = startWorker(logger, pgPool!, redisClient, 'webhook-process');
+  dispatchWorker = startWorker(logger, pgPool!, redisClient, 'webhook-dispatch');
+}
 
 async function initializeConnections(): Promise<void> {
   if (!pgPool) {
@@ -27,17 +37,6 @@ async function initializeConnections(): Promise<void> {
   }
 }
 
-async function start() {
-  await initializeConnections();
-
-  if (!pgPool || !redisClient) {
-    throw new Error('Database connections not initialized');
-  }
-
-  startProcessWorker(pgPool, redisClient);
-  startDispatchWorker(pgPool, redisClient);
-}
-
 async function shutdown(signal: string): Promise<void> {
   logger.info(`${signal} received, shutting down webhook worker`);
 
@@ -48,8 +47,8 @@ async function shutdown(signal: string): Promise<void> {
 
   try {
     await Promise.all([
-      stopProcessWorker(),
-      stopDispatchWorker(),
+      processWorker ? stopWorker(logger, processWorker) : Promise.resolve(),
+      dispatchWorker ? stopWorker(logger, dispatchWorker) : Promise.resolve(),
       cleanupRedisClient(),
       cleanupPgPool()
     ]);
@@ -57,6 +56,7 @@ async function shutdown(signal: string): Promise<void> {
     clearTimeout(shutdownTimeout);
 
     logger.info('Graceful shutdown completed');
+
     process.exit(0);
   } catch (err) {
     logger.error('Error during graceful shutdown', { err });
@@ -67,4 +67,4 @@ async function shutdown(signal: string): Promise<void> {
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
-start();
+startService();

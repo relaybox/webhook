@@ -1,57 +1,52 @@
-import { Job, Worker } from 'bullmq';
-import { getLogger } from '@/util/logger.util';
-import { connectionOptionsIo, RedisClient } from '@/lib/redis';
 import { Pool } from 'pg';
+import { Job, Worker } from 'bullmq';
+import { Logger } from 'winston';
+import { connectionOptionsIo, RedisClient } from '@/lib/redis';
 import { JobName, router } from './router';
 
-const QUEUE_NAME = 'webhook-dispatch';
-
-const logger = getLogger(QUEUE_NAME);
-
-let worker: Worker | null = null;
-
-async function handler(pgPool: Pool, redisClient: RedisClient, job: Job) {
+async function handler(logger: Logger, pgPool: Pool, redisClient: RedisClient, job: Job) {
   const { id, name, data } = job;
-
-  logger.info(`Processing job ${id} (${name})`, { data });
 
   await router(pgPool, redisClient, name as JobName, data);
 
-  logger.debug(`Job ${id} processed`);
+  logger.debug(`Job ${id} processed successfully`);
 }
 
-export function startWorker(pgPool: Pool, redisClient: RedisClient): Worker {
-  worker = new Worker(QUEUE_NAME, (job: Job) => handler(pgPool, redisClient, job), {
+export function startWorker(
+  logger: Logger,
+  pgPool: Pool,
+  redisClient: RedisClient,
+  queueName: string
+): Worker {
+  const worker = new Worker(queueName, (job: Job) => handler(logger, pgPool, redisClient, job), {
     connection: connectionOptionsIo,
     prefix: 'queue'
   });
 
-  worker.on('failed', (job: Job<any, void, string> | undefined, err: Error, prev: string) => {
-    logger.error(`Failed to process job ${job?.id}`, { err });
+  worker.on('failed', (job: Job | undefined, err: Error, prev: string) => {
+    logger.error(`${worker.name} failed to process job ${job?.id}`, { err });
   });
 
   worker.on('ready', () => {
-    logger.info(`${QUEUE_NAME} worker ready`);
+    logger.info(`${worker.name} worker ready`);
   });
 
-  worker.on('active', () => {
-    logger.debug(`${QUEUE_NAME} worker active`);
+  worker.on('active', (job: Job) => {
+    logger.debug(`${worker.name} worker active, processing ${job.id}`);
   });
 
   return worker;
 }
 
-export async function stopWorker(): Promise<void> {
+export async function stopWorker(logger: Logger, worker: Worker | null): Promise<void> {
   if (!worker) {
-    throw new Error('Worker not initialized');
+    throw new Error(`Worker not initialized`);
   }
 
   try {
-    logger.info('Closing dispatch worker');
+    logger.info(`Closing worker ${worker.name}`);
     await worker.close();
   } catch (err) {
     logger.error('Failed to close worker', { err });
-  } finally {
-    worker = null;
   }
 }
