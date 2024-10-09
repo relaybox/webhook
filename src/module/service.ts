@@ -4,7 +4,14 @@ import { PoolClient } from 'pg';
 import { createHmac } from 'crypto';
 import * as db from './db';
 import { RegisteredWebhook, WebhookEvent, WebhookPayload, WebhookResponse } from './types';
-import webhookDispatchQueue, { defaultJobConfig, WebhookDispatchJobName } from './queues/dispatch';
+import webhookDispatchQueue, {
+  defaultJobConfig as dispatchQueueDefaultJobConfig,
+  WebhookDispatchJobName
+} from './queues/dispatch';
+import webhookLoggingQueue, {
+  defaultJobConfig as loggingQueueDefaultJobConfig,
+  WebhookLoggingJobName
+} from './queues/logging';
 
 const SIGNATURE_HASHING_ALGORITHM = 'sha256';
 const SIGNATURE_BUFFER_ENCODING = 'utf-8';
@@ -57,17 +64,16 @@ export async function enqueueRegisteredWebhooks(
 
   return Promise.all(
     registeredWebhooks.map(async (webhook: RegisteredWebhook) => {
-      const jobConfig = {
-        ...defaultJobConfig
-        // jobId: webhook.id
-      };
-
       const jobData = {
         webhook,
         payload
       };
 
-      return webhookDispatchQueue.add(WebhookDispatchJobName.WEBHOOK_DISPATCH, jobData, jobConfig);
+      return webhookDispatchQueue.add(
+        WebhookDispatchJobName.WEBHOOK_DISPATCH,
+        jobData,
+        dispatchQueueDefaultJobConfig
+      );
     })
   );
 }
@@ -80,7 +86,7 @@ export async function dispatchWebhook(
 ): Promise<WebhookResponse> {
   logger.debug(`Dispatching webhook`, { webhook });
 
-  const { data } = payload;
+  const { id, data } = payload;
   const { url, signingKey } = webhook;
 
   try {
@@ -106,6 +112,7 @@ export async function dispatchWebhook(
     }
 
     return {
+      id,
       status: response.status,
       statusText: response.statusText
     };
@@ -115,19 +122,45 @@ export async function dispatchWebhook(
   }
 }
 
+export function enqueueWebhookLog(
+  logger: Logger,
+  webhook: RegisteredWebhook,
+  webhookResponse: WebhookResponse
+): Promise<Job> {
+  logger.debug(`Enqueuing webhook log`, { webhook, webhookResponse });
+
+  const jobData = {
+    webhook,
+    webhookResponse
+  };
+
+  return webhookLoggingQueue.add(
+    WebhookLoggingJobName.WEBHOOK_LOGGING_WRITE,
+    jobData,
+    loggingQueueDefaultJobConfig
+  );
+}
+
 export async function logWebhookEvent(
   logger: Logger,
   pgClient: PoolClient,
   webhook: RegisteredWebhook,
-  payload: WebhookPayload,
   webhookResponse: WebhookResponse
 ): Promise<void> {
   logger.debug(`Logging webhook event`, { webhook, webhookResponse });
 
   try {
     const { id: webhookId, appId, appPid } = webhook;
-    const { status, statusText } = webhookResponse;
-    await db.logWebhookEvent(pgClient, appId, appPid, webhookId, status, statusText);
+    const { id: webhookRequestId, status, statusText } = webhookResponse;
+    await db.logWebhookEvent(
+      pgClient,
+      appId,
+      appPid,
+      webhookId,
+      webhookRequestId,
+      status,
+      statusText
+    );
   } catch (err: unknown) {
     logger.error(`Failed to log webhook event`, { err });
   }

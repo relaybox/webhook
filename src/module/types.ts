@@ -13,6 +13,7 @@ export interface WebhookPayload {
 }
 
 export interface WebhookResponse {
+  id: string;
   status: number;
   statusText: string;
 }

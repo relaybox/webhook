@@ -1,12 +1,21 @@
 import { Pool } from 'pg';
 import { RedisClient } from '@/lib/redis';
 import { getLogger } from '@/util/logger.util';
-import { dispatchWebhook, logWebhookEvent } from '@/module/service';
-import { WebhookResponse } from '@/module/types';
+import { dispatchWebhook, enqueueWebhookLog, logWebhookEvent } from '@/module/service';
+import { RegisteredWebhook, WebhookResponse } from '@/module/types';
 
 const logger = getLogger('webhook-dispatch');
 
-export async function handler(pgPool: Pool, redisClient: RedisClient, jobData: any): Promise<void> {
+interface JobData {
+  webhook: RegisteredWebhook;
+  payload: any;
+}
+
+export async function handler(
+  pgPool: Pool,
+  redisClient: RedisClient,
+  jobData: JobData
+): Promise<void> {
   const { webhook, payload } = jobData;
 
   const pgClient = await pgPool.connect();
@@ -23,6 +32,7 @@ export async function handler(pgPool: Pool, redisClient: RedisClient, jobData: a
     const statusText = err instanceof Error ? err.message : 'Unable to dispatch webhook';
 
     webhookResponse = {
+      id: payload.id,
       status: 500,
       statusText
     };
@@ -30,7 +40,7 @@ export async function handler(pgPool: Pool, redisClient: RedisClient, jobData: a
     throw err;
   } finally {
     if (webhookResponse) {
-      await logWebhookEvent(logger, pgClient, webhook, payload, webhookResponse);
+      enqueueWebhookLog(logger, webhook, webhookResponse);
     }
 
     pgClient.release();

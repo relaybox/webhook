@@ -4,7 +4,7 @@ import { Logger } from 'winston';
 import { connectionOptionsIo, RedisClient } from '@/lib/redis';
 import { JobName, router } from './router';
 
-const WORKER_CONCURRENCY = 1;
+const DEFAULT_WORKER_CONCURRENCY = 1;
 
 async function handler(logger: Logger, pgPool: Pool, redisClient: RedisClient, job: Job) {
   const { id, name, data } = job;
@@ -19,20 +19,28 @@ export function startWorker(
   pgPool: Pool,
   redisClient: RedisClient,
   queueName: string,
-  concurrency = WORKER_CONCURRENCY
+  concurrency = DEFAULT_WORKER_CONCURRENCY
 ): Worker {
-  const worker = new Worker(queueName, (job: Job) => handler(logger, pgPool, redisClient, job), {
+  const workerConfig = {
     connection: connectionOptionsIo,
     prefix: 'queue',
     concurrency
+  };
+
+  logger.info(`Creating ${queueName} worker`, { config: workerConfig });
+
+  const worker = new Worker(
+    queueName,
+    (job: Job) => handler(logger, pgPool, redisClient, job),
+    workerConfig
+  );
+
+  worker.on('ready', () => {
+    logger.info(`${worker.name} worker ready`);
   });
 
   worker.on('failed', (job: Job | undefined, err: Error, prev: string) => {
     logger.error(`${worker.name} failed to process job ${job?.id}`, { err });
-  });
-
-  worker.on('ready', () => {
-    logger.info(`${worker.name} worker ready`);
   });
 
   worker.on('active', (job: Job) => {

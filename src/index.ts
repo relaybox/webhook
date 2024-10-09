@@ -10,17 +10,20 @@ const logger = getLogger('webhook');
 const pgPool = getPgPool();
 const redisClient = getRedisClient();
 
-const PROCESS_WORKER_NAME = 'webhook-process';
-const DISPATCH_WORKER_NAME = 'webhook-dispatch';
+const PROCESS_QUEUE_NAME = 'webhook-process';
+const DISPATCH_QUEUE_NAME = 'webhook-dispatch';
+const LOGGING_QUEUE_NAME = 'webhook-logging';
 
 let processWorker: Worker | null = null;
 let dispatchWorker: Worker | null = null;
+let loggingWorker: Worker | null = null;
 
 async function startService() {
   await initializeConnections();
 
-  processWorker = startWorker(logger, pgPool, redisClient, PROCESS_WORKER_NAME, 10);
-  dispatchWorker = startWorker(logger, pgPool, redisClient, DISPATCH_WORKER_NAME);
+  processWorker = startWorker(logger, pgPool, redisClient, PROCESS_QUEUE_NAME, 10);
+  dispatchWorker = startWorker(logger, pgPool, redisClient, DISPATCH_QUEUE_NAME);
+  loggingWorker = startWorker(logger, pgPool, redisClient, LOGGING_QUEUE_NAME, 1);
 }
 
 async function initializeConnections(): Promise<void> {
@@ -52,6 +55,7 @@ async function shutdown(signal: string): Promise<void> {
     await Promise.all([
       processWorker ? stopWorker(logger, processWorker) : Promise.resolve(),
       dispatchWorker ? stopWorker(logger, dispatchWorker) : Promise.resolve(),
+      loggingWorker ? stopWorker(logger, loggingWorker) : Promise.resolve(),
       cleanupRedisClient(),
       cleanupPgPool()
     ]);

@@ -11,6 +11,8 @@ export async function handler(
   redisClient: RedisClient,
   payload: WebhookPayload
 ): Promise<void> {
+  logger.info(`Processing webhook`);
+
   const pgClient = await pgPool.connect();
 
   try {
