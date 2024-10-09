@@ -12,11 +12,12 @@ import { startWorker, stopWorker } from './module/worker';
 import { WEBHOOK_DISPATCH_QUEUE_NAME } from './module/queues';
 import { ServiceWorker } from './module/types';
 import { startConsumer } from './module/consumer';
+import { StreamConsumer } from './lib/stream-consumer';
 
 const logger = getLogger('webhook');
 const pgPool = getPgPool();
 const redisClient = getRedisClient();
-const redisStreamClient = getRedisStreamClient();
+// const redisStreamClient = getRedisStreamClient();
 
 const WEBHOOK_PROCESS_QUEUE_NAME = 'webhook-process';
 
@@ -30,18 +31,16 @@ export const LOG_STREAM_CONSUMER_NAME = 'webhook-log-consumer';
 async function startService() {
   await initializeConnections();
 
-  await startConsumer(
-    logger,
-    pgPool,
-    redisClient,
-    redisStreamClient,
-    LOG_STREAM_KEY,
-    LOG_STREAM_GROUP_NAME,
-    LOG_STREAM_CONSUMER_NAME
-  );
-
   processWorker = startWorker(logger, pgPool, redisClient, WEBHOOK_PROCESS_QUEUE_NAME, 10);
   dispatchWorker = startWorker(logger, pgPool, redisClient, WEBHOOK_DISPATCH_QUEUE_NAME);
+
+  const streamConsumer = new StreamConsumer(redisClient, LOG_STREAM_KEY, LOG_STREAM_GROUP_NAME);
+
+  await streamConsumer.connect();
+
+  streamConsumer.on('message', (message: any) => {
+    console.log('MESSAGE', JSON.stringify(message, null, 2));
+  });
 }
 
 async function initializeConnections(): Promise<void> {
@@ -53,13 +52,8 @@ async function initializeConnections(): Promise<void> {
     throw new Error('Failed to initialize Redis client');
   }
 
-  if (!redisStreamClient) {
-    throw new Error('Failed to initialize Redis stream client');
-  }
-
   try {
     await redisClient.connect();
-    await redisStreamClient.connect();
   } catch (err) {
     logger.error('Failed to connect to Redis', { err });
     throw err;
@@ -79,7 +73,6 @@ async function shutdown(signal: string): Promise<void> {
       stopWorker(logger, processWorker),
       stopWorker(logger, dispatchWorker),
       cleanupRedisClient(),
-      cleanupRedisStreamClient(redisStreamClient),
       cleanupPgPool()
     ]);
 
