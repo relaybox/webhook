@@ -52,7 +52,7 @@ export function startWorker(
 
 export async function stopWorker(logger: Logger, worker: Worker | null): Promise<void> {
   if (!worker) {
-    throw new Error(`Worker not initialized`);
+    return Promise.resolve();
   }
 
   try {

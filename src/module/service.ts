@@ -8,10 +8,8 @@ import webhookDispatchQueue, {
   defaultJobConfig as dispatchQueueDefaultJobConfig,
   WebhookDispatchJobName
 } from './queues/dispatch';
-import webhookLoggerQueue, {
-  defaultJobConfig as loggerQueueDefaultJobConfig
-} from './queues/logger';
-import { JobName } from './router';
+import { RedisClient } from '@/lib/redis';
+import { LOG_STREAM_KEY } from '..';
 
 const SIGNATURE_HASHING_ALGORITHM = 'sha256';
 const SIGNATURE_BUFFER_ENCODING = 'utf-8';
@@ -122,25 +120,22 @@ export async function dispatchWebhook(
   }
 }
 
-export function enqueueWebhookLog(
+export async function enqueueWebhookLog(
   logger: Logger,
+  redisClient: RedisClient,
   webhook: RegisteredWebhook,
   webhookResponse: WebhookResponse
-): void {
+): Promise<void> {
   logger.debug(`Enqueuing webhook log`, { webhook, webhookResponse });
 
-  const jobData = {
+  const logData = {
     webhook,
     webhookResponse
   };
 
-  console.log('Add log here', jobData);
+  console.log('JOB DATA', LOG_STREAM_KEY, logData);
 
-  // return webhookLoggingQueue.add(
-  //   WebhookLoggingJobName.WEBHOOK_LOGGING_WRITE,
-  //   jobData,
-  //   loggingQueueDefaultJobConfig
-  // );
+  await redisClient.xAdd(LOG_STREAM_KEY, '*', { data: JSON.stringify(logData) });
 }
 
 export async function logWebhookEvent(
@@ -166,15 +161,5 @@ export async function logWebhookEvent(
     );
   } catch (err: unknown) {
     logger.error(`Failed to log webhook event`, { err });
-  }
-}
-
-export async function startWebhookLogger(logger: Logger) {
-  logger.info(`Starting webhook-logger cron task`);
-
-  try {
-    await webhookLoggerQueue.add(JobName.WEBHOOK_LOGGER, 1, loggerQueueDefaultJobConfig);
-  } catch (err) {
-    logger.error(`Failed to start webhook logger`, { err });
   }
 }

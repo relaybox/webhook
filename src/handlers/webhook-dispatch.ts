@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { RedisClient } from '@/lib/redis';
+import { getRedisStreamClient, RedisClient } from '@/lib/redis';
 import { getLogger } from '@/util/logger.util';
 import { dispatchWebhook, enqueueWebhookLog, logWebhookEvent } from '@/module/service';
 import { RegisteredWebhook, WebhookResponse } from '@/module/types';
@@ -40,7 +40,7 @@ export async function handler(
     throw err;
   } finally {
     if (webhookResponse) {
-      enqueueWebhookLog(logger, webhook, webhookResponse);
+      enqueueWebhookLog(logger, redisClient, webhook, webhookResponse);
     }
 
     pgClient.release();

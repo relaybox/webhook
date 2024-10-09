@@ -1,31 +1,47 @@
 import 'dotenv/config';
 
 import { getLogger } from '@/util/logger.util';
-import { cleanupRedisClient, getRedisClient } from '@/lib/redis';
+import {
+  cleanupRedisClient,
+  cleanupRedisStreamClient,
+  getRedisClient,
+  getRedisStreamClient
+} from '@/lib/redis';
 import { cleanupPgPool, getPgPool } from '@/lib/pg';
 import { startWorker, stopWorker } from './module/worker';
-import { startWebhookLogger } from './module/service';
-import { WEBHOOK_DISPATCH_QUEUE_NAME, WEBHOOK_LOGGER_QUEUE_NAME } from './module/queues';
+import { WEBHOOK_DISPATCH_QUEUE_NAME } from './module/queues';
 import { ServiceWorker } from './module/types';
+import { startConsumer } from './module/consumer';
 
 const logger = getLogger('webhook');
 const pgPool = getPgPool();
 const redisClient = getRedisClient();
+const redisStreamClient = getRedisStreamClient();
 
 const WEBHOOK_PROCESS_QUEUE_NAME = 'webhook-process';
 
 let processWorker: ServiceWorker;
 let dispatchWorker: ServiceWorker;
-let loggerWorker: ServiceWorker;
+
+export const LOG_STREAM_KEY = 'webhook:log-stream';
+export const LOG_STREAM_GROUP_NAME = 'webhook-log-group';
+export const LOG_STREAM_CONSUMER_NAME = 'webhook-log-consumer';
 
 async function startService() {
   await initializeConnections();
 
-  startWebhookLogger(logger);
+  await startConsumer(
+    logger,
+    pgPool,
+    redisStreamClient,
+    LOG_STREAM_KEY,
+    LOG_STREAM_GROUP_NAME,
+    LOG_STREAM_CONSUMER_NAME
+  );
 
   processWorker = startWorker(logger, pgPool, redisClient, WEBHOOK_PROCESS_QUEUE_NAME, 10);
+
   dispatchWorker = startWorker(logger, pgPool, redisClient, WEBHOOK_DISPATCH_QUEUE_NAME);
-  loggerWorker = startWorker(logger, pgPool, redisClient, WEBHOOK_LOGGER_QUEUE_NAME);
 }
 
 async function initializeConnections(): Promise<void> {
@@ -37,8 +53,13 @@ async function initializeConnections(): Promise<void> {
     throw new Error('Failed to initialize Redis client');
   }
 
+  if (!redisStreamClient) {
+    throw new Error('Failed to initialize Redis stream client');
+  }
+
   try {
     await redisClient.connect();
+    await redisStreamClient.connect();
   } catch (err) {
     logger.error('Failed to connect to Redis', { err });
     throw err;
@@ -55,10 +76,10 @@ async function shutdown(signal: string): Promise<void> {
 
   try {
     await Promise.all([
-      processWorker ? stopWorker(logger, processWorker) : Promise.resolve(),
-      dispatchWorker ? stopWorker(logger, dispatchWorker) : Promise.resolve(),
-      loggerWorker ? stopWorker(logger, loggerWorker) : Promise.resolve(),
+      stopWorker(logger, processWorker),
+      stopWorker(logger, dispatchWorker),
       cleanupRedisClient(),
+      cleanupRedisStreamClient(redisStreamClient),
       cleanupPgPool()
     ]);
 
