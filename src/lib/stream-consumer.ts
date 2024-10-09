@@ -72,15 +72,15 @@ export class StreamConsumer extends EventEmitter {
 
     while (true) {
       try {
-        const result = await this.redisBlockingClient.xReadGroup(
+        const data = await this.redisBlockingClient.xReadGroup(
           this.groupName,
           this.consumerName,
           streams,
           options
         );
 
-        if (result) {
-          this.emit('message', result);
+        if (data) {
+          this.emit('data', data);
         }
       } catch (err: unknown) {
         this.logger.error('Error consuming messages from stream:', err);

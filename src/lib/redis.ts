@@ -102,28 +102,6 @@ export function getRedisClient(): RedisClient {
   return redisClient;
 }
 
-export function getRedisStreamClient(): RedisClient {
-  const redisStreamClient = createClient(connectionOptions);
-
-  redisStreamClient.on('connect', () => {
-    logger.info('Redis stream client connected');
-  });
-
-  redisStreamClient.on('error', (err) => {
-    logger.error(`Redis stream client connection error`, { err });
-  });
-
-  redisStreamClient.on('ready', () => {
-    logger.info('Redis stream client is ready');
-  });
-
-  redisStreamClient.on('end', () => {
-    logger.info('Redis stream client disconnected');
-  });
-
-  return redisStreamClient;
-}
-
 export async function cleanupRedisClient(): Promise<void> {
   if (redisClient) {
     try {
@@ -132,16 +110,6 @@ export async function cleanupRedisClient(): Promise<void> {
       logger.error('Error disconnecting Redis client', { err });
     } finally {
       redisClient = null;
-    }
-  }
-}
-
-export async function cleanupRedisStreamClient(redisStreamClient: RedisClient): Promise<void> {
-  if (redisStreamClient) {
-    try {
-      await redisStreamClient.quit();
-    } catch (err) {
-      logger.error('Error disconnecting Redis stream client', { err });
     }
   }
 }

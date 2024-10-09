@@ -1,7 +1,7 @@
 import { Pool } from 'pg';
-import { getRedisStreamClient, RedisClient } from '@/lib/redis';
+import { RedisClient } from '@/lib/redis';
 import { getLogger } from '@/util/logger.util';
-import { dispatchWebhook, enqueueWebhookLog, logWebhookEvent } from '@/module/service';
+import { dispatchWebhook, enqueueWebhookLog } from '@/module/service';
 import { RegisteredWebhook, WebhookResponse } from '@/module/types';
 
 const logger = getLogger('webhook-dispatch');

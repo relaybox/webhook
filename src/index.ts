@@ -1,28 +1,23 @@
 import 'dotenv/config';
 
 import { getLogger } from '@/util/logger.util';
-import {
-  cleanupRedisClient,
-  cleanupRedisStreamClient,
-  getRedisClient,
-  getRedisStreamClient
-} from '@/lib/redis';
+import { cleanupRedisClient, getRedisClient } from '@/lib/redis';
 import { cleanupPgPool, getPgPool } from '@/lib/pg';
 import { startWorker, stopWorker } from './module/worker';
 import { WEBHOOK_DISPATCH_QUEUE_NAME } from './module/queues';
 import { ServiceWorker } from './module/types';
-import { startConsumer } from './module/consumer';
+import { startLogStreamConsumer } from './module/consumer';
 import { StreamConsumer } from './lib/stream-consumer';
 
 const logger = getLogger('webhook');
 const pgPool = getPgPool();
 const redisClient = getRedisClient();
-// const redisStreamClient = getRedisStreamClient();
 
 const WEBHOOK_PROCESS_QUEUE_NAME = 'webhook-process';
 
 let processWorker: ServiceWorker;
 let dispatchWorker: ServiceWorker;
+let logStreamConsumer: StreamConsumer;
 
 export const LOG_STREAM_KEY = 'webhook:log-stream';
 export const LOG_STREAM_GROUP_NAME = 'webhook-log-group';
@@ -33,14 +28,13 @@ async function startService() {
 
   processWorker = startWorker(logger, pgPool, redisClient, WEBHOOK_PROCESS_QUEUE_NAME, 10);
   dispatchWorker = startWorker(logger, pgPool, redisClient, WEBHOOK_DISPATCH_QUEUE_NAME);
-
-  const streamConsumer = new StreamConsumer(redisClient, LOG_STREAM_KEY, LOG_STREAM_GROUP_NAME);
-
-  await streamConsumer.connect();
-
-  streamConsumer.on('message', (message: any) => {
-    console.log('MESSAGE', JSON.stringify(message, null, 2));
-  });
+  logStreamConsumer = await startLogStreamConsumer(
+    logger,
+    pgPool,
+    redisClient,
+    LOG_STREAM_KEY,
+    LOG_STREAM_CONSUMER_NAME
+  );
 }
 
 async function initializeConnections(): Promise<void> {

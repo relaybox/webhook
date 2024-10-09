@@ -1,6 +1,6 @@
 import { Logger } from 'winston';
 import { Job } from 'bullmq';
-import { PoolClient } from 'pg';
+import { Pool, PoolClient } from 'pg';
 import { createHmac } from 'crypto';
 import * as db from './db';
 import { RegisteredWebhook, WebhookEvent, WebhookPayload, WebhookResponse } from './types';
