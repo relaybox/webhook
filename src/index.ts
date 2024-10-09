@@ -1,29 +1,31 @@
 import 'dotenv/config';
 
-import { Worker } from 'bullmq';
 import { getLogger } from '@/util/logger.util';
 import { cleanupRedisClient, getRedisClient } from '@/lib/redis';
 import { cleanupPgPool, getPgPool } from '@/lib/pg';
 import { startWorker, stopWorker } from './module/worker';
+import { startWebhookLogger } from './module/service';
+import { WEBHOOK_DISPATCH_QUEUE_NAME, WEBHOOK_LOGGER_QUEUE_NAME } from './module/queues';
+import { ServiceWorker } from './module/types';
 
 const logger = getLogger('webhook');
 const pgPool = getPgPool();
 const redisClient = getRedisClient();
 
-const PROCESS_QUEUE_NAME = 'webhook-process';
-const DISPATCH_QUEUE_NAME = 'webhook-dispatch';
-const LOGGING_QUEUE_NAME = 'webhook-logging';
+const WEBHOOK_PROCESS_QUEUE_NAME = 'webhook-process';
 
-let processWorker: Worker | null = null;
-let dispatchWorker: Worker | null = null;
-let loggingWorker: Worker | null = null;
+let processWorker: ServiceWorker;
+let dispatchWorker: ServiceWorker;
+let loggerWorker: ServiceWorker;
 
 async function startService() {
   await initializeConnections();
 
-  processWorker = startWorker(logger, pgPool, redisClient, PROCESS_QUEUE_NAME, 10);
-  dispatchWorker = startWorker(logger, pgPool, redisClient, DISPATCH_QUEUE_NAME);
-  loggingWorker = startWorker(logger, pgPool, redisClient, LOGGING_QUEUE_NAME, 1);
+  startWebhookLogger(logger);
+
+  processWorker = startWorker(logger, pgPool, redisClient, WEBHOOK_PROCESS_QUEUE_NAME, 10);
+  dispatchWorker = startWorker(logger, pgPool, redisClient, WEBHOOK_DISPATCH_QUEUE_NAME);
+  loggerWorker = startWorker(logger, pgPool, redisClient, WEBHOOK_LOGGER_QUEUE_NAME);
 }
 
 async function initializeConnections(): Promise<void> {
@@ -55,7 +57,7 @@ async function shutdown(signal: string): Promise<void> {
     await Promise.all([
       processWorker ? stopWorker(logger, processWorker) : Promise.resolve(),
       dispatchWorker ? stopWorker(logger, dispatchWorker) : Promise.resolve(),
-      loggingWorker ? stopWorker(logger, loggingWorker) : Promise.resolve(),
+      loggerWorker ? stopWorker(logger, loggerWorker) : Promise.resolve(),
       cleanupRedisClient(),
       cleanupPgPool()
     ]);

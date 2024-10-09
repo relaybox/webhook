@@ -4,7 +4,7 @@ import { getLogger } from '@/util/logger.util';
 import { logWebhookEvent } from '@/module/service';
 import { RegisteredWebhook, WebhookResponse } from '@/module/types';
 
-const logger = getLogger('webhook-logging');
+const logger = getLogger('webhook-logger');
 
 interface JobData {
   webhook: RegisteredWebhook;
@@ -23,7 +23,8 @@ export async function handler(
   logger.info(`Logging webhook`, { webhook });
 
   try {
-    await logWebhookEvent(logger, pgClient, webhook, webhookResponse);
+    // await logWebhookEvent(logger, pgClient, webhook, webhookResponse);
+    console.log('CRON TASK RUNNING');
   } catch (err: unknown) {
     logger.error(`Failed to log webhook event`, { err });
     throw err;

@@ -1,3 +1,7 @@
+import { Worker } from 'bullmq';
+
+export type ServiceWorker = Worker | null;
+
 export enum WebhookEvent {
   ROOM_JOIN = 'room:join',
   ROOM_LEAVE = 'room:leave',

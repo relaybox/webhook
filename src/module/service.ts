@@ -8,10 +8,10 @@ import webhookDispatchQueue, {
   defaultJobConfig as dispatchQueueDefaultJobConfig,
   WebhookDispatchJobName
 } from './queues/dispatch';
-import webhookLoggingQueue, {
-  defaultJobConfig as loggingQueueDefaultJobConfig,
-  WebhookLoggingJobName
-} from './queues/logging';
+import webhookLoggerQueue, {
+  defaultJobConfig as loggerQueueDefaultJobConfig
+} from './queues/logger';
+import { JobName } from './router';
 
 const SIGNATURE_HASHING_ALGORITHM = 'sha256';
 const SIGNATURE_BUFFER_ENCODING = 'utf-8';
@@ -126,7 +126,7 @@ export function enqueueWebhookLog(
   logger: Logger,
   webhook: RegisteredWebhook,
   webhookResponse: WebhookResponse
-): Promise<Job> {
+): void {
   logger.debug(`Enqueuing webhook log`, { webhook, webhookResponse });
 
   const jobData = {
@@ -134,11 +134,13 @@ export function enqueueWebhookLog(
     webhookResponse
   };
 
-  return webhookLoggingQueue.add(
-    WebhookLoggingJobName.WEBHOOK_LOGGING_WRITE,
-    jobData,
-    loggingQueueDefaultJobConfig
-  );
+  console.log('Add log here', jobData);
+
+  // return webhookLoggingQueue.add(
+  //   WebhookLoggingJobName.WEBHOOK_LOGGING_WRITE,
+  //   jobData,
+  //   loggingQueueDefaultJobConfig
+  // );
 }
 
 export async function logWebhookEvent(
@@ -164,5 +166,15 @@ export async function logWebhookEvent(
     );
   } catch (err: unknown) {
     logger.error(`Failed to log webhook event`, { err });
+  }
+}
+
+export async function startWebhookLogger(logger: Logger) {
+  logger.info(`Starting webhook-logger cron task`);
+
+  try {
+    await webhookLoggerQueue.add(JobName.WEBHOOK_LOGGER, 1, loggerQueueDefaultJobConfig);
+  } catch (err) {
+    logger.error(`Failed to start webhook logger`, { err });
   }
 }
