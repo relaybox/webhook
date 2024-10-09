@@ -9,7 +9,7 @@ import webhookDispatchQueue, { defaultJobConfig, WebhookDispatchJobName } from '
 const SIGNATURE_HASHING_ALGORITHM = 'sha256';
 const SIGNATURE_BUFFER_ENCODING = 'utf-8';
 const SIGNTURE_DIGEST = 'hex';
-const DEFAULT_REQUEST_TIMEOUT_MS = 10000;
+const DEFAULT_REQUEST_TIMEOUT_MS = 100;
 const RETRYABLE_ERROR_CODES = [500, 429];
 
 export function generateRequestSignature(stringToSign: string, signingKey: string): string {
@@ -74,11 +74,15 @@ export async function enqueueRegisteredWebhooks(
 
 export async function dispatchWebhook(
   logger: Logger,
+  pgClient: PoolClient,
   webhook: RegisteredWebhook,
   payload: WebhookPayload
 ): Promise<WebhookResponse> {
-  const { url, signingKey } = webhook;
+  let response: Response | null = null;
+  let webhookResponse: WebhookResponse | null = null;
+
   const { data } = payload;
+  const { url, signingKey } = webhook;
 
   try {
     const stringToSign = JSON.stringify(data);
@@ -96,18 +100,48 @@ export async function dispatchWebhook(
       signal: AbortSignal.timeout(DEFAULT_REQUEST_TIMEOUT_MS)
     };
 
-    const response = await fetch(url, requestOptions);
+    response = await fetch(url, requestOptions);
 
     if (!response.ok && RETRYABLE_ERROR_CODES.includes(response.status)) {
       throw new Error(`Retryable HTTP error, status: ${response.status}`);
     }
 
-    return {
+    webhookResponse = {
       status: response.status,
       statusText: response.statusText
     };
+
+    return webhookResponse;
   } catch (err: unknown) {
     logger.error(`Failed to dispatch webhook ${url}`, { err });
+
+    const statusText = err instanceof Error ? err.message : 'Unable to dispatch webhook';
+
+    webhookResponse = {
+      status: response?.status || 500,
+      statusText
+    };
+
     throw err;
+  } finally {
+    if (webhookResponse) {
+      logWebhookEvent(logger, pgClient, webhook, payload, webhookResponse);
+    }
+  }
+}
+
+export async function logWebhookEvent(
+  logger: Logger,
+  pgClient: PoolClient,
+  webhook: RegisteredWebhook,
+  payload: WebhookPayload,
+  webhookResponse: WebhookResponse
+): Promise<void> {
+  try {
+    const { id: webhookId, appId, appPid } = webhook;
+    const { status, statusText } = webhookResponse;
+    await db.logWebhookEvent(pgClient, appId, appPid, webhookId, status, statusText);
+  } catch (err: unknown) {
+    logger.error(`Failed to log webhook event`, { err });
   }
 }

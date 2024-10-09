@@ -22,6 +22,8 @@ export interface RegisteredWebhook {
   event: WebhookEvent;
   signingKey: string;
   url: string;
+  appId: string;
+  appPid: string;
 }
 
 export interface AuthUser {
