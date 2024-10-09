@@ -80,9 +80,6 @@ export async function dispatchWebhook(
 ): Promise<WebhookResponse> {
   logger.debug(`Dispatching webhook`, { webhook });
 
-  let response: Response | null = null;
-  let webhookResponse: WebhookResponse | null = null;
-
   const { data } = payload;
   const { url, signingKey } = webhook;
 
@@ -102,33 +99,19 @@ export async function dispatchWebhook(
       signal: AbortSignal.timeout(DEFAULT_REQUEST_TIMEOUT_MS)
     };
 
-    response = await fetch(url, requestOptions);
+    const response = await fetch(url, requestOptions);
 
     if (!response.ok && RETRYABLE_ERROR_CODES.includes(response.status)) {
       throw new Error(`Retryable HTTP error, status: ${response.status}`);
     }
 
-    webhookResponse = {
+    return {
       status: response.status,
       statusText: response.statusText
     };
-
-    return webhookResponse;
   } catch (err: unknown) {
     logger.error(`Failed to dispatch webhook to ${url}`, { err });
-
-    const statusText = err instanceof Error ? err.message : 'Unable to dispatch webhook';
-
-    webhookResponse = {
-      status: response?.status || 500,
-      statusText
-    };
-
     throw err;
-  } finally {
-    if (webhookResponse) {
-      logWebhookEvent(logger, pgClient, webhook, payload, webhookResponse);
-    }
   }
 }
 
