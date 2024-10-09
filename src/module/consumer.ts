@@ -5,6 +5,7 @@ import { Logger } from 'winston';
 export async function startConsumer(
   logger: Logger,
   pgPool: Pool,
+  redisClient: RedisClient,
   redisStreamClient: RedisClient,
   streamKey: string,
   groupName: string,
@@ -12,7 +13,7 @@ export async function startConsumer(
 ): Promise<void> {
   logger.info('Starting consumer');
 
-  await createConsumerGroup(logger, redisStreamClient, streamKey, groupName);
+  await createConsumerGroup(logger, redisClient, streamKey, groupName);
 
   consumeMessages(logger, pgPool, redisStreamClient, streamKey, groupName, consumerName);
 }

@@ -33,6 +33,7 @@ async function startService() {
   await startConsumer(
     logger,
     pgPool,
+    redisClient,
     redisStreamClient,
     LOG_STREAM_KEY,
     LOG_STREAM_GROUP_NAME,
@@ -40,7 +41,6 @@ async function startService() {
   );
 
   processWorker = startWorker(logger, pgPool, redisClient, WEBHOOK_PROCESS_QUEUE_NAME, 10);
-
   dispatchWorker = startWorker(logger, pgPool, redisClient, WEBHOOK_DISPATCH_QUEUE_NAME);
 }
 

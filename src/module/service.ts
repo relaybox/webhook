@@ -9,6 +9,7 @@ import webhookDispatchQueue, {
   WebhookDispatchJobName
 } from './queues/dispatch';
 import { RedisClient } from '@/lib/redis';
+import { addMessageToLogStream } from './repository';
 import { LOG_STREAM_KEY } from '..';
 
 const SIGNATURE_HASHING_ALGORITHM = 'sha256';
@@ -133,9 +134,7 @@ export async function enqueueWebhookLog(
     webhookResponse
   };
 
-  console.log('JOB DATA', LOG_STREAM_KEY, logData);
-
-  await redisClient.xAdd(LOG_STREAM_KEY, '*', { data: JSON.stringify(logData) });
+  await addMessageToLogStream(redisClient, LOG_STREAM_KEY, logData);
 }
 
 export async function logWebhookEvent(
