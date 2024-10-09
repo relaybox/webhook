@@ -11,11 +11,10 @@ export async function handler(pgPool: Pool, redisClient: RedisClient, jobData: a
 
   const pgClient = await pgPool.connect();
 
-  let response: WebhookResponse | null = null;
+  logger.info(`Dispatching webhook`, { webhook });
 
   try {
-    response = await dispatchWebhook(logger, pgClient, webhook, payload);
-    logger.info(`Webhook dispatched successfully`, { response });
+    await dispatchWebhook(logger, pgClient, webhook, payload);
   } catch (err: any) {
     logger.error(`Failed to dispatch webhook event`, { err });
     throw err;

@@ -78,6 +78,8 @@ export async function dispatchWebhook(
   webhook: RegisteredWebhook,
   payload: WebhookPayload
 ): Promise<WebhookResponse> {
+  logger.debug(`Dispatching webhook`, { webhook });
+
   let response: Response | null = null;
   let webhookResponse: WebhookResponse | null = null;
 
@@ -113,7 +115,7 @@ export async function dispatchWebhook(
 
     return webhookResponse;
   } catch (err: unknown) {
-    logger.error(`Failed to dispatch webhook ${url}`, { err });
+    logger.error(`Failed to dispatch webhook to ${url}`, { err });
 
     const statusText = err instanceof Error ? err.message : 'Unable to dispatch webhook';
 
@@ -137,6 +139,8 @@ export async function logWebhookEvent(
   payload: WebhookPayload,
   webhookResponse: WebhookResponse
 ): Promise<void> {
+  logger.debug(`Logging webhook event`, { webhook, webhookResponse });
+
   try {
     const { id: webhookId, appId, appPid } = webhook;
     const { status, statusText } = webhookResponse;
