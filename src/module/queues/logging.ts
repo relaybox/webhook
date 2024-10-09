@@ -1,4 +1,4 @@
-import { Queue } from 'bullmq';
+import { JobsOptions, Queue } from 'bullmq';
 import { connectionOptionsIo } from '@/lib/redis';
 
 const WEBHOOK_LOGGING_QUEUE_NAME = 'webhook-logging';
@@ -15,7 +15,7 @@ export enum WebhookLoggingJobName {
   WEBHOOK_LOGGING_WRITE = 'webhook:logging:write'
 }
 
-export const defaultJobConfig = {
+export const defaultJobConfig: JobsOptions = {
   removeOnComplete: true,
   removeOnFail: true
 };

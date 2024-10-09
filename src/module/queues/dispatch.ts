@@ -1,4 +1,4 @@
-import { Queue } from 'bullmq';
+import { JobsOptions, Queue } from 'bullmq';
 import { connectionOptionsIo } from '@/lib/redis';
 
 const WEBHOOK_DISPATCH_QUEUE_NAME = 'webhook-dispatch';
@@ -18,7 +18,7 @@ export enum WebhookDispatchJobName {
   WEBHOOK_DISPATCH = 'webhook:dispatch'
 }
 
-export const defaultJobConfig = {
+export const defaultJobConfig: JobsOptions = {
   attempts: RETRY_MAX_ATTEMPTS,
   backoff: {
     type: RETRY_BACKOFF_TYPE,

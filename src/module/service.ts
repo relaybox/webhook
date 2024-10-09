@@ -152,6 +152,7 @@ export async function logWebhookEvent(
   try {
     const { id: webhookId, appId, appPid } = webhook;
     const { id: webhookRequestId, status, statusText } = webhookResponse;
+
     await db.logWebhookEvent(
       pgClient,
       appId,
