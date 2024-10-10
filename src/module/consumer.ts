@@ -49,7 +49,7 @@ export async function startLogStreamConsumer(
         })
       );
 
-      webhookLogStreamHandler(pgPool, redisClient, messages);
+      webhookLogStreamHandler(pgPool, redisClient, streamKey, groupName, messages);
     } catch (err: unknown) {
       logger.error('Error processing log stream message data', { err });
     }

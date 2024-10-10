@@ -148,7 +148,7 @@ export class StreamConsumer extends EventEmitter {
     ];
 
     const options = {
-      COUNT: 10
+      COUNT: 1
     };
 
     try {

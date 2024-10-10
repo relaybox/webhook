@@ -3,6 +3,7 @@ import { Job } from 'bullmq';
 import { Pool, PoolClient } from 'pg';
 import { createHmac } from 'crypto';
 import * as db from './db';
+import * as repository from './repository';
 import {
   LogStreamMessageData,
   RegisteredWebhook,
@@ -15,7 +16,6 @@ import webhookDispatchQueue, {
   WebhookDispatchJobName
 } from './queues/dispatch';
 import { RedisClient } from '@/lib/redis';
-import { addMessageToLogStream } from './repository';
 import { LOG_STREAM_KEY } from '..';
 
 const SIGNATURE_HASHING_ALGORITHM = 'sha256';
@@ -141,7 +141,7 @@ export async function enqueueWebhookLog(
     webhookResponse
   };
 
-  await addMessageToLogStream(redisClient, LOG_STREAM_KEY, logData);
+  await repository.addMessageToLogStream(redisClient, LOG_STREAM_KEY, logData);
 }
 
 export async function logWebhookEvent(
@@ -210,5 +210,23 @@ export async function bulkInsertWebhookLogs(
     await db.bulkInsertWebhookLogs(pgClient, queryPlaceholders, values);
   } catch (err: unknown) {
     logger.error(`Failed to bulk insert webhook logs`, { err });
+  }
+}
+
+export async function acknowledgeLogStreamMessageData(
+  logger: Logger,
+  redisClient: RedisClient,
+  streamKey: string,
+  groupName: string,
+  logStreamMessageData: LogStreamMessageData[]
+): Promise<void> {
+  try {
+    const ids = logStreamMessageData.map((messageData) => messageData.streamId);
+
+    logger.debug(`Acknowledging ${ids.length} messages`);
+
+    await repository.acknowledgeLogStreamMessages(redisClient, streamKey, groupName, ids);
+  } catch (err) {
+    logger.error('Error processing messages:', err);
   }
 }
