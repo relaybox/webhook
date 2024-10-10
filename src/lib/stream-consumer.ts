@@ -8,6 +8,7 @@ const DEFAULT_CONSUMER_NAME = `consumer-${process.pid}`;
 const DEFAULT_POLLING_TIMEOUT = 10000;
 const DEFAULT_MAX_LEN = 1000;
 const DEFAULT_TRIM_INTERVAL = 60000;
+const DEFAULT_MAX_BUFFER_LENGTH = 10;
 
 type RedisClient = RedisClientType<RedisModules, RedisFunctions, RedisScripts>;
 
@@ -19,6 +20,7 @@ interface StreamConsumerOptions {
   blocking?: boolean;
   pollingTimeoutMs?: number;
   maxLen?: number;
+  maxBufferLength?: number;
 }
 
 export class StreamConsumer extends EventEmitter {
@@ -34,6 +36,8 @@ export class StreamConsumer extends EventEmitter {
   private pollTimeout: NodeJS.Timeout;
   private maxLen: number;
   private trimInterval: NodeJS.Timeout;
+  private messageBuffer: any = [];
+  private maxBufferLength: number = DEFAULT_MAX_BUFFER_LENGTH;
 
   constructor(opts: StreamConsumerOptions) {
     super();
@@ -122,7 +126,7 @@ export class StreamConsumer extends EventEmitter {
     ];
 
     const options = {
-      BLOCK: 0,
+      BLOCK: 10000,
       COUNT: 10
     };
 
@@ -136,13 +140,40 @@ export class StreamConsumer extends EventEmitter {
         );
 
         if (data) {
-          this.emit('data', data);
+          this.bufferStreamData(data);
+        } else {
+          this.flushStreamDataBuffer();
         }
       } catch (err: unknown) {
         this.logger.error('Error consuming messages from stream:', err);
         await new Promise((resolve) => setTimeout(resolve, 5000));
       }
     }
+  }
+
+  private bufferStreamData(data: any): void {
+    this.logger.debug(`Buffering stream data`);
+
+    const messages = data.flatMap((stream: any) => stream.messages);
+
+    this.messageBuffer = this.messageBuffer.concat(messages);
+
+    if (this.messageBuffer.length >= this.maxBufferLength) {
+      this.flushStreamDataBuffer();
+    }
+  }
+
+  private flushStreamDataBuffer(): void {
+    this.logger.debug(`Flushing stream data buffer`);
+
+    if (!this.messageBuffer.length) {
+      this.logger.debug(`No messages in buffer`);
+      return;
+    }
+
+    this.emit('data', this.messageBuffer);
+
+    this.messageBuffer = [];
   }
 
   private async readStream(): Promise<void> {

@@ -191,6 +191,16 @@ export function parseRawLogStream(
   }));
 }
 
+export function parseBufferedLogStream(
+  logger: Logger,
+  messages: StreamConsumerMessageData[]
+): LogStreamMessageData[] {
+  return messages.map((streamMessageData: StreamConsumerMessageData) => ({
+    streamId: streamMessageData.id,
+    ...JSON.parse(streamMessageData.message.data)
+  }));
+}
+
 export function parseLogStreamMessageData(
   logger: Logger,
   logStreamMessageData: LogStreamMessageData[]

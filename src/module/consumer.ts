@@ -19,7 +19,7 @@ export async function startLogStreamConsumer(
     streamKey,
     groupName,
     blocking: false,
-    pollingTimeoutMs: 10000,
+    pollingTimeoutMs: 3000,
     maxLen: 1000
   });
 
