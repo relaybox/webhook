@@ -213,7 +213,7 @@ export async function bulkInsertWebhookLogs(
   pgClient: PoolClient,
   rows: (string | number)[][]
 ): Promise<void> {
-  logger.debug(`Bulk inserting ${rows.length} webhook(s)`);
+  logger.debug(`Bulk inserting ${rows.length} webhook log(s)`);
 
   try {
     const placeholdersPerRow = rows[0].length;

@@ -47,7 +47,7 @@ export class StreamConsumer extends EventEmitter {
     this.maxLen = opts.maxLen || DEFAULT_MAX_LEN;
 
     if (opts.blocking) {
-      this.redisBlockingClient = this.createClient();
+      this.redisBlockingClient = this.createBlockingClient();
     }
 
     this.logger = getLogger(`stream-consumer:${this.consumerName}`);
@@ -72,23 +72,23 @@ export class StreamConsumer extends EventEmitter {
     return this;
   }
 
-  private createClient(): RedisClient {
+  private createBlockingClient(): RedisClient {
     const client = this.redisClient.duplicate();
 
     client.on('connect', () => {
-      this.logger.info('Redis stream client connected');
+      this.logger.info('Redis blocking client connected');
     });
 
     client.on('error', (err) => {
-      this.logger.error(`Redis stream client connection error`, { err });
+      this.logger.error(`Redis blocking client connection error`, { err });
     });
 
     client.on('ready', () => {
-      this.logger.info('Redis stream client is ready');
+      this.logger.info('Redis blocking client is ready');
     });
 
     client.on('end', () => {
-      this.logger.info('Redis stream client disconnected');
+      this.logger.info('Redis blocking client disconnected');
     });
 
     return client;
