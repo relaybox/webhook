@@ -287,7 +287,6 @@ export class StreamConsumer extends EventEmitter {
     try {
       this.isConsuming = false;
       this.flushStreamDataBuffer();
-      // this.redisClient.xGroupDelConsumer(this.streamKey, this.groupName, this.consumerName);
       await this.redisClient.quit();
       clearTimeout(this.pollTimeout);
       clearInterval(this.trimInterval);
