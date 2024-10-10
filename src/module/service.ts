@@ -162,3 +162,15 @@ export async function logWebhookEvent(
     logger.error(`Failed to log webhook event`, { err });
   }
 }
+
+export async function bulkInsertWebhookLogs(
+  logger: Logger,
+  pgPool: PoolClient,
+  pgClient: PoolClient,
+  redisClient: RedisClient,
+  webhookLogs: { webhook: RegisteredWebhook; webhookResponse: WebhookResponse }[]
+): Promise<void> {
+  logger.debug(`Bulk inserting ${webhookLogs.length} webhook(s)`);
+
+  console.log(webhookLogs);
+}

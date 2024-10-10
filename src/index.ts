@@ -31,7 +31,7 @@ async function startService() {
   logStreamConsumer = await startLogStreamConsumer(
     logger,
     pgPool,
-    connectionOptions,
+    redisClient,
     LOG_STREAM_KEY,
     LOG_STREAM_CONSUMER_NAME
   );

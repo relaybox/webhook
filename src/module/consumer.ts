@@ -3,31 +3,48 @@ import { StreamConsumer } from '@/lib/stream-consumer';
 import { Pool } from 'pg';
 import { RedisClientOptions } from 'redis';
 import { Logger } from 'winston';
+import { handler as webhookLogStreamHandler } from '@/handlers/webhook-log-stream';
 
-interface StreamMessage {
+interface StreamConsumerData {
+  name: string;
+  messages: string;
+}
+
+interface StreamMessageData {
   id: string;
-  message: string;
+  message: {
+    data: string;
+  };
 }
 
 export async function startLogStreamConsumer(
   logger: Logger,
   pgPool: Pool,
-  connectionOptions: RedisClientOptions,
+  redisClient: RedisClient,
   streamKey: string,
   groupName: string
 ): Promise<StreamConsumer> {
   logger.info('Starting log stream consumer');
 
-  const streamConsumer = new StreamConsumer(connectionOptions, streamKey, groupName);
+  const streamConsumer = new StreamConsumer({
+    redisClient,
+    streamKey,
+    groupName,
+    blocking: false,
+    pollingTimeoutMs: 3000
+  });
 
   await streamConsumer.connect();
 
-  streamConsumer.on('data', (data: any) => {
-    // const messages = message.map(({ id, message }: StreamMessage) => {
-    //   console.log('MESSAGE', startLogStreamConsumer);
-    // });
+  streamConsumer.on('data', (streams: any) => {
+    const stream = streams.find((stream: StreamConsumerData) => stream.name === streamKey);
 
-    console.log('STREAM DATA', JSON.stringify(data, null, 2));
+    const messages = stream.messages.map((streamMessageData: StreamMessageData) => ({
+      streamId: streamMessageData.id,
+      ...JSON.parse(streamMessageData.message.data)
+    }));
+
+    webhookLogStreamHandler(pgPool, redisClient, messages);
   });
 
   return streamConsumer;

@@ -1,12 +1,12 @@
 import { Pool } from 'pg';
 import { RedisClient } from '@/lib/redis';
 import { getLogger } from '@/util/logger.util';
-import { logWebhookEvent } from '@/module/service';
 import { RegisteredWebhook, WebhookResponse } from '@/module/types';
 
 const logger = getLogger('webhook-logger');
 
-interface JobData {
+interface messageData {
+  streamId: string;
   webhook: RegisteredWebhook;
   webhookResponse: WebhookResponse;
 }
@@ -14,12 +14,12 @@ interface JobData {
 export async function handler(
   pgPool: Pool,
   redisClient: RedisClient,
-  messageData: JobData[]
+  messageData: messageData[]
 ): Promise<void> {
   const pgClient = await pgPool.connect();
 
   try {
-    console.log('CRON TASK RUNNING', messageData);
+    console.log('MESSSAGES FROM LOG STREAM', messageData);
   } catch (err: unknown) {
     logger.error(`Failed to log webhook event`, { err });
     throw err;
