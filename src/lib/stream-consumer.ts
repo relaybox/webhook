@@ -4,7 +4,7 @@ import os from 'os';
 import { getLogger } from '@/util/logger.util';
 import { Logger } from 'winston';
 
-const DEFAULT_CONSUMER_NAME = os.hostname();
+const DEFAULT_CONSUMER_NAME = `consumer-${process.pid}`;
 const DEFAULT_POLLING_TIMEOUT = 10000;
 const DEFAULT_MAX_LEN = 1000;
 const DEFAULT_TRIM_INTERVAL = 60000;
@@ -64,7 +64,7 @@ export class StreamConsumer extends EventEmitter {
       await this.redisBlockingClient.connect();
       this.startBlockingConsumer();
     } else {
-      this.pollStream();
+      this.readStream();
     }
 
     this.logger.info(`Stream consumer is ready`);
@@ -145,7 +145,7 @@ export class StreamConsumer extends EventEmitter {
     }
   }
 
-  private async pollStream(): Promise<void> {
+  private async readStream(): Promise<void> {
     this.logger.debug(`Polling ${this.streamKey} stream`);
 
     const streams = [
@@ -156,7 +156,7 @@ export class StreamConsumer extends EventEmitter {
     ];
 
     const options = {
-      COUNT: 1
+      COUNT: 10
     };
 
     try {
@@ -174,14 +174,16 @@ export class StreamConsumer extends EventEmitter {
       this.logger.error('Error consuming messages from stream:', err);
     }
 
-    this.pollTimeout = setTimeout(() => this.pollStream(), this.pollingTimeoutMs);
+    this.pollTimeout = setTimeout(() => this.readStream(), this.pollingTimeoutMs);
   }
 
   private trimStream(): void {
     this.logger.debug(`Trimming stream`);
 
     try {
-      this.redisClient.xTrim(this.streamKey, 'MAXLEN', this.maxLen);
+      this.redisClient.xTrim(this.streamKey, 'MAXLEN', this.maxLen, {
+        strategyModifier: '~'
+      });
     } catch (err: unknown) {
       this.logger.error('Error trimming stream:', err);
     }

@@ -3,7 +3,6 @@ import { StreamConsumer } from '@/lib/stream-consumer';
 import { Pool } from 'pg';
 import { Logger } from 'winston';
 import { handler as webhookLogStreamHandler } from '@/handlers/webhook-log-stream';
-import { LogStreamMessageData, StreamConsumerData, StreamConsumerMessageData } from './types';
 import { parseRawLogStream } from './service';
 
 export async function startLogStreamConsumer(
@@ -20,7 +19,7 @@ export async function startLogStreamConsumer(
     streamKey,
     groupName,
     blocking: false,
-    pollingTimeoutMs: 3000,
+    pollingTimeoutMs: 30000,
     maxLen: 1000
   });
 
