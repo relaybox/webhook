@@ -3,7 +3,7 @@ import { RedisClient } from '@/lib/redis';
 import { getLogger } from '@/util/logger.util';
 import { LogStreamMessageData } from '@/module/types';
 import {
-  acknowledgeLogStreamMessageData,
+  acknowledgeLogStreamMessage,
   bulkInsertWebhookLogs,
   parseLogStreamMessageData
 } from '@/module/service';
@@ -26,7 +26,7 @@ export async function handler(
 
     await bulkInsertWebhookLogs(logger, pgClient, parsedMessageData);
 
-    await acknowledgeLogStreamMessageData(
+    await acknowledgeLogStreamMessage(
       logger,
       redisClient,
       streamKey,

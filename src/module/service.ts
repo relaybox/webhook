@@ -209,15 +209,19 @@ export function parseLogStreamMessageData(
 ): (string | number)[][] {
   logger.debug(`Parsing ${logStreamMessageData.length} log stream message(s)`);
 
-  return logStreamMessageData.map((messageData) => [
-    messageData.webhook.appId,
-    messageData.webhook.appPid,
-    messageData.webhook.id,
-    messageData.webhookResponse.id,
-    messageData.webhookResponse.status,
-    messageData.webhookResponse.statusText,
-    new Date(messageData.webhookResponse.timestamp).toISOString()
-  ]);
+  return logStreamMessageData.map((messageData) => {
+    const { webhook, webhookResponse } = messageData;
+
+    return [
+      webhook.appId,
+      webhook.appPid,
+      webhook.id,
+      webhookResponse.id,
+      webhookResponse.status,
+      webhookResponse.statusText,
+      new Date(webhookResponse.timestamp).toISOString()
+    ];
+  });
 }
 
 export async function bulkInsertWebhookLogs(
@@ -246,7 +250,7 @@ export async function bulkInsertWebhookLogs(
   }
 }
 
-export async function acknowledgeLogStreamMessageData(
+export async function acknowledgeLogStreamMessage(
   logger: Logger,
   redisClient: RedisClient,
   streamKey: string,

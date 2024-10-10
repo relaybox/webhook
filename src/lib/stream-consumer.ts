@@ -2,7 +2,7 @@ import EventEmitter from 'events';
 import { Logger } from 'winston';
 import { RedisClientType, RedisFunctions, RedisModules, RedisScripts } from 'redis';
 import { getLogger } from '@/util/logger.util';
-import { StreamConsumerData } from '@/module/types';
+import { StreamConsumerData, StreamConsumerMessageData } from '@/module/types';
 
 const DEFAULT_CONSUMER_NAME = `consumer-${process.pid}`;
 const DEFAULT_POLLING_TIMEOUT = 10000;
@@ -41,8 +41,6 @@ export class StreamConsumer extends EventEmitter {
   constructor(opts: StreamConsumerOptions) {
     super();
 
-    this.logger = getLogger(`stream-consumer:${this.consumerName}`);
-
     this.redisClient = opts.redisClient.duplicate();
     this.streamKey = opts.streamKey;
     this.groupName = opts.groupName;
@@ -51,6 +49,8 @@ export class StreamConsumer extends EventEmitter {
     this.blocking = opts.blocking || false;
     this.streamMaxLen = opts.streamMaxLen || DEFAULT_MAX_LEN;
     this.trimInterval = setInterval(() => this.trimStream(), DEFAULT_TRIM_INTERVAL);
+
+    this.logger = getLogger(`stream-consumer:${this.consumerName}`);
   }
 
   async connect(): Promise<StreamConsumer> {
@@ -88,6 +88,8 @@ export class StreamConsumer extends EventEmitter {
     await this.redisClient.connect();
 
     await this.createConsumerGroup();
+
+    this.checkPendingMessages();
 
     if (this.blocking) {
       this.startBlockingConsumer();
@@ -142,7 +144,8 @@ export class StreamConsumer extends EventEmitter {
         );
 
         if (data) {
-          this.appendStreamDataBuffer(data);
+          const messages = data.flatMap((stream: StreamConsumerData) => stream.messages);
+          this.pushToStreamDataBuffer(messages);
         } else {
           this.flushStreamDataBuffer();
         }
@@ -153,12 +156,10 @@ export class StreamConsumer extends EventEmitter {
     }
   }
 
-  private appendStreamDataBuffer(data: StreamConsumerData[]): void {
+  private pushToStreamDataBuffer(messages: (StreamConsumerMessageData | null)[]): void {
     this.logger.debug(`Buffering stream data`);
 
     try {
-      const messages = data.flatMap((stream: StreamConsumerData) => stream.messages);
-
       this.messageBuffer = this.messageBuffer.concat(messages);
 
       if (this.messageBuffer.length >= this.maxBufferLength) {
@@ -229,11 +230,68 @@ export class StreamConsumer extends EventEmitter {
     }
   }
 
+  private async checkPendingMessages(): Promise<void> {
+    this.logger.info(`Checking pending messages`);
+
+    try {
+      const pendingMessages = await this.redisClient.xPending(this.streamKey, this.groupName);
+
+      if (!pendingMessages.pending) {
+        this.logger.info(`No pending messages found`);
+        return;
+      }
+
+      const { pending, firstId, lastId, consumers } = pendingMessages;
+
+      if (pending > 0 && firstId) {
+        this.logger.info(`${pending} pending message(s) found, reading PEL`);
+
+        await this.claimPendingMessages(pending, firstId, lastId);
+
+        // POTENTIALLY DELETE CONSUMERS WITH PENDING MESSAGES HERE...
+        // console.log(consumers);
+      }
+    } catch (err: unknown) {
+      this.logger.error('Error checking pending messages:', err);
+    }
+  }
+
+  private async claimPendingMessages(
+    pending: number,
+    firstId: string,
+    lastId: string | null
+  ): Promise<void> {
+    this.logger.debug(`Claiming pending messages in range ${firstId} - ${lastId}`);
+
+    try {
+      const claimed = await this.redisClient.xAutoClaim(
+        this.streamKey,
+        this.groupName,
+        this.consumerName,
+        10000,
+        firstId,
+        {
+          COUNT: pending
+        }
+      );
+
+      this.logger.debug(`Claiming ${claimed.messages.length} idle message(s)`);
+
+      if (claimed.messages.length) {
+        this.pushToStreamDataBuffer(claimed.messages);
+      }
+    } catch (err) {
+      this.logger.error('Error claiming pending messages:', err);
+    }
+  }
+
   public async disconnect(): Promise<void> {
     this.logger.info('Closing stream consumer');
 
     try {
       this.isConsuming = false;
+      this.flushStreamDataBuffer();
+      // this.redisClient.xGroupDelConsumer(this.streamKey, this.groupName, this.consumerName);
       await this.redisClient.quit();
       clearTimeout(this.pollTimeout);
       clearInterval(this.trimInterval);
