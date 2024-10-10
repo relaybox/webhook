@@ -5,6 +5,12 @@ import { Logger } from 'winston';
 import { handler as webhookLogStreamHandler } from '@/handlers/webhook-log-stream';
 import { parseBufferedLogStream } from './service';
 
+const LOG_STREAM_DEFAULT_MAX_LEN = Number(process.env.LOG_STREAM_DEFAULT_MAX_LEN);
+const LOG_STREAM_DEFAULT_TRIM_INTERVAL_MS = Number(process.env.LOG_STREAM_DEFAULT_TRIM_INTERVAL_MS);
+const LOG_STREAM_DEFAULT_MAX_BUFFER_LENGTH = Number(
+  process.env.LOG_STREAM_DEFAULT_MAX_BUFFER_LENGTH
+);
+
 export async function startLogStreamConsumer(
   logger: Logger,
   pgPool: Pool,
@@ -19,8 +25,8 @@ export async function startLogStreamConsumer(
     streamKey,
     groupName,
     blocking: true,
-    // pollingTimeoutMs: 3000,
-    streamMaxLen: 1000
+    streamMaxLen: LOG_STREAM_DEFAULT_MAX_LEN,
+    bufferMaxLength: LOG_STREAM_DEFAULT_MAX_BUFFER_LENGTH
   });
 
   streamConsumer.on('data', (data: any) => {

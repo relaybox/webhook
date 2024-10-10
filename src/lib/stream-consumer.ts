@@ -20,7 +20,7 @@ interface StreamConsumerOptions {
   blocking?: boolean;
   pollingTimeoutMs?: number;
   streamMaxLen?: number;
-  maxBufferLength?: number;
+  bufferMaxLength?: number;
 }
 
 export class StreamConsumer extends EventEmitter {
@@ -36,7 +36,7 @@ export class StreamConsumer extends EventEmitter {
   private streamMaxLen: number;
   private trimInterval: NodeJS.Timeout;
   private messageBuffer: any = [];
-  private maxBufferLength: number = DEFAULT_MAX_BUFFER_LENGTH;
+  private bufferMaxLength: number;
 
   constructor(opts: StreamConsumerOptions) {
     super();
@@ -49,6 +49,7 @@ export class StreamConsumer extends EventEmitter {
     this.blocking = opts.blocking || false;
     this.streamMaxLen = opts.streamMaxLen || DEFAULT_MAX_LEN;
     this.trimInterval = setInterval(() => this.trimStream(), DEFAULT_TRIM_INTERVAL);
+    this.bufferMaxLength = opts.bufferMaxLength || DEFAULT_MAX_BUFFER_LENGTH;
 
     this.logger = getLogger(`stream-consumer:${this.consumerName}`);
   }
@@ -161,7 +162,7 @@ export class StreamConsumer extends EventEmitter {
     try {
       this.messageBuffer = this.messageBuffer.concat(messages);
 
-      if (this.messageBuffer.length >= this.maxBufferLength) {
+      if (this.messageBuffer.length >= this.bufferMaxLength) {
         this.flushStreamDataBuffer();
       }
     } catch (err: unknown) {
