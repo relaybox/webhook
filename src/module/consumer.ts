@@ -23,8 +23,6 @@ export async function startLogStreamConsumer(
     streamMaxLen: 1000
   });
 
-  await streamConsumer.connect();
-
   streamConsumer.on('data', (data: any) => {
     logger.debug(`Processing ${data.length} log stream message(s)`);
 
@@ -36,6 +34,8 @@ export async function startLogStreamConsumer(
       logger.error('Error processing log stream message data', { err });
     }
   });
+
+  await streamConsumer.connect();
 
   return streamConsumer;
 }

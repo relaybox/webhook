@@ -88,8 +88,7 @@ export class StreamConsumer extends EventEmitter {
     await this.redisClient.connect();
 
     await this.createConsumerGroup();
-
-    this.checkPendingMessages();
+    await this.checkPendingMessages();
 
     if (this.blocking) {
       this.startBlockingConsumer();
@@ -244,12 +243,7 @@ export class StreamConsumer extends EventEmitter {
       const { pending, firstId, lastId, consumers } = pendingMessages;
 
       if (pending > 0 && firstId) {
-        this.logger.info(`${pending} pending message(s) found, reading PEL`);
-
         await this.claimPendingMessages(pending, firstId, lastId);
-
-        // POTENTIALLY DELETE CONSUMERS WITH PENDING MESSAGES HERE...
-        // console.log(consumers);
       }
     } catch (err: unknown) {
       this.logger.error('Error checking pending messages:', err);
@@ -261,7 +255,9 @@ export class StreamConsumer extends EventEmitter {
     firstId: string,
     lastId: string | null
   ): Promise<void> {
-    this.logger.debug(`Claiming pending messages in range ${firstId} - ${lastId}`);
+    this.logger.debug(
+      `Attempting to claim ${pending} pending messages in range ${firstId} - ${lastId}`
+    );
 
     try {
       const claimed = await this.redisClient.xAutoClaim(
@@ -275,7 +271,7 @@ export class StreamConsumer extends EventEmitter {
         }
       );
 
-      this.logger.debug(`Claiming ${claimed.messages.length} idle message(s)`);
+      this.logger.debug(`Claimed ${claimed.messages.length} idle message(s)`);
 
       if (claimed.messages.length) {
         this.pushToStreamDataBuffer(claimed.messages);
