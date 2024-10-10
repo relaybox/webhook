@@ -20,6 +20,7 @@ export interface WebhookResponse {
   id: string;
   status: number;
   statusText: string;
+  timestamp: number;
 }
 
 export interface RegisteredWebhook {
@@ -54,4 +55,10 @@ export interface Session {
   connectionId: string;
   socketId: string;
   user?: AuthUser;
+}
+
+export interface LogStreamMessageData {
+  streamId: string;
+  webhook: RegisteredWebhook;
+  webhookResponse: WebhookResponse;
 }

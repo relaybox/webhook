@@ -3,7 +3,13 @@ import { Job } from 'bullmq';
 import { Pool, PoolClient } from 'pg';
 import { createHmac } from 'crypto';
 import * as db from './db';
-import { RegisteredWebhook, WebhookEvent, WebhookPayload, WebhookResponse } from './types';
+import {
+  LogStreamMessageData,
+  RegisteredWebhook,
+  WebhookEvent,
+  WebhookPayload,
+  WebhookResponse
+} from './types';
 import webhookDispatchQueue, {
   defaultJobConfig as dispatchQueueDefaultJobConfig,
   WebhookDispatchJobName
@@ -113,7 +119,8 @@ export async function dispatchWebhook(
     return {
       id,
       status: response.status,
-      statusText: response.statusText
+      statusText: response.statusText,
+      timestamp: Date.now()
     };
   } catch (err: unknown) {
     logger.error(`Failed to dispatch webhook to ${url}`, { err });
@@ -163,14 +170,45 @@ export async function logWebhookEvent(
   }
 }
 
+export function parseLogStreamMessageData(
+  logger: Logger,
+  logStreamMessageData: LogStreamMessageData[]
+): (string | number)[][] {
+  logger.debug(`Parsing ${logStreamMessageData.length} log stream message(s)`);
+
+  return logStreamMessageData.map((messageData) => [
+    messageData.webhook.appId,
+    messageData.webhook.appPid,
+    messageData.webhook.id,
+    messageData.webhookResponse.id,
+    messageData.webhookResponse.status,
+    messageData.webhookResponse.statusText,
+    new Date(messageData.webhookResponse.timestamp).toISOString()
+  ]);
+}
+
 export async function bulkInsertWebhookLogs(
   logger: Logger,
-  pgPool: PoolClient,
   pgClient: PoolClient,
-  redisClient: RedisClient,
-  webhookLogs: { webhook: RegisteredWebhook; webhookResponse: WebhookResponse }[]
+  rows: (string | number)[][]
 ): Promise<void> {
-  logger.debug(`Bulk inserting ${webhookLogs.length} webhook(s)`);
+  logger.debug(`Bulk inserting ${rows.length} webhook(s)`);
 
-  console.log(webhookLogs);
+  try {
+    const placeholdersPerRow = rows[0].length;
+
+    const queryPlaceholders = rows.map((_, i) => {
+      const baseIndex = i * placeholdersPerRow + 1;
+      const arrayParams = { length: placeholdersPerRow };
+      const placeholders = Array.from(arrayParams, (_, j) => `$${baseIndex + j}`);
+
+      return `(${placeholders.join(', ')})`;
+    });
+
+    const values = rows.flat();
+
+    await db.bulkInsertWebhookLogs(pgClient, queryPlaceholders, values);
+  } catch (err: unknown) {
+    logger.error(`Failed to bulk insert webhook logs`, { err });
+  }
 }

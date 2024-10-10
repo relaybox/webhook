@@ -45,3 +45,18 @@ export function logWebhookEvent(
     now
   ]);
 }
+
+export function bulkInsertWebhookLogs(
+  pgClient: PoolClient,
+  queryPlaceholders: string[],
+  values: (string | number)[]
+): Promise<QueryResult> {
+  const query = `
+    INSERT INTO application_webhook_logs (
+      "appId", "appPid", "webhookId", "webhookRequestId", status, "statusText", "createdAt"
+    )
+    VALUES ${queryPlaceholders};
+  `;
+
+  return pgClient.query(query, values);
+}

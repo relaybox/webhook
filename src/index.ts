@@ -1,7 +1,7 @@
 import 'dotenv/config';
 
 import { getLogger } from '@/util/logger.util';
-import { cleanupRedisClient, connectionOptions, getRedisClient } from '@/lib/redis';
+import { cleanupRedisClient, getRedisClient } from '@/lib/redis';
 import { cleanupPgPool, getPgPool } from '@/lib/pg';
 import { startWorker, stopWorker } from './module/worker';
 import { WEBHOOK_DISPATCH_QUEUE_NAME } from './module/queues/dispatch';
@@ -19,7 +19,7 @@ let processWorker: ServiceWorker;
 let dispatchWorker: ServiceWorker;
 let logStreamConsumer: StreamConsumer;
 
-export const LOG_STREAM_KEY = 'webhook:log-stream';
+export const LOG_STREAM_KEY = 'logs:webhook';
 export const LOG_STREAM_GROUP_NAME = 'webhook-log-group';
 export const LOG_STREAM_CONSUMER_NAME = 'webhook-log-consumer';
 

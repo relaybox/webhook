@@ -34,7 +34,8 @@ export async function handler(
     webhookResponse = {
       id: payload.id,
       status: 500,
-      statusText
+      statusText,
+      timestamp: Date.now()
     };
 
     throw err;
