@@ -20,7 +20,7 @@ export async function startLogStreamConsumer(
     groupName,
     blocking: true,
     // pollingTimeoutMs: 3000,
-    maxLen: 1000
+    streamMaxLen: 1000
   });
 
   await streamConsumer.connect();

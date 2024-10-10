@@ -1,6 +1,6 @@
 import { Logger } from 'winston';
 import { Job } from 'bullmq';
-import { Pool, PoolClient } from 'pg';
+import { PoolClient } from 'pg';
 import { createHmac } from 'crypto';
 import * as db from './db';
 import * as repository from './repository';
@@ -256,7 +256,7 @@ export async function acknowledgeLogStreamMessageData(
   try {
     const ids = logStreamMessageData.map((messageData) => messageData.streamId);
 
-    logger.debug(`Acknowledging ${ids.length} messages`);
+    logger.debug(`Acknowledging ${ids.length} stream message(s)`, { streamKey, groupName });
 
     await repository.acknowledgeLogStreamMessagesById(redisClient, streamKey, groupName, ids);
   } catch (err) {

@@ -17,9 +17,9 @@ export async function handler(
   groupName: string,
   logStreamMessageData: LogStreamMessageData[]
 ): Promise<void> {
-  const pgClient = await pgPool.connect();
+  logger.info(`Processing log stream data`, { streamKey, groupName });
 
-  console.log(logStreamMessageData);
+  const pgClient = await pgPool.connect();
 
   try {
     const parsedMessageData = parseLogStreamMessageData(logger, logStreamMessageData);

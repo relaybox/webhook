@@ -71,6 +71,13 @@ export interface StreamConsumerData {
 export interface StreamConsumerMessageData {
   id: string;
   message: {
-    data: string;
+    [x: string]: string;
   };
 }
+
+// export interface StreamConsumerMessageData {
+//   id: string;
+//   message: {
+//     data: string;
+//   };
+// }
