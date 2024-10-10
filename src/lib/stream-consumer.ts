@@ -154,26 +154,33 @@ export class StreamConsumer extends EventEmitter {
   private bufferStreamData(data: any): void {
     this.logger.debug(`Buffering stream data`);
 
-    const messages = data.flatMap((stream: any) => stream.messages);
+    try {
+      const messages = data.flatMap((stream: any) => stream.messages);
 
-    this.messageBuffer = this.messageBuffer.concat(messages);
+      this.messageBuffer = this.messageBuffer.concat(messages);
 
-    if (this.messageBuffer.length >= this.maxBufferLength) {
-      this.flushStreamDataBuffer();
+      if (this.messageBuffer.length >= this.maxBufferLength) {
+        this.flushStreamDataBuffer();
+      }
+    } catch (err: unknown) {
+      this.logger.error('Stream message buffering failed');
     }
   }
 
   private flushStreamDataBuffer(): void {
     this.logger.debug(`Flushing stream data buffer`);
+    try {
+      if (!this.messageBuffer.length) {
+        this.logger.debug(`No messages in buffer`);
+        return;
+      }
 
-    if (!this.messageBuffer.length) {
-      this.logger.debug(`No messages in buffer`);
-      return;
+      this.emit('data', this.messageBuffer);
+
+      this.messageBuffer = [];
+    } catch (err: unknown) {
+      this.logger.error('Stream message buffering failed');
     }
-
-    this.emit('data', this.messageBuffer);
-
-    this.messageBuffer = [];
   }
 
   private async readStream(): Promise<void> {
