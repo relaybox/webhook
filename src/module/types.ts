@@ -62,3 +62,15 @@ export interface LogStreamMessageData {
   webhook: RegisteredWebhook;
   webhookResponse: WebhookResponse;
 }
+
+export interface StreamConsumerData {
+  name: string;
+  messages: StreamConsumerMessageData[];
+}
+
+export interface StreamConsumerMessageData {
+  id: string;
+  message: {
+    data: string;
+  };
+}

@@ -7,6 +7,8 @@ import * as repository from './repository';
 import {
   LogStreamMessageData,
   RegisteredWebhook,
+  StreamConsumerData,
+  StreamConsumerMessageData,
   WebhookEvent,
   WebhookPayload,
   WebhookResponse
@@ -170,6 +172,25 @@ export async function logWebhookEvent(
   }
 }
 
+export function parseRawLogStream(
+  logger: Logger,
+  streams: StreamConsumerData[],
+  streamKey: string
+): LogStreamMessageData[] {
+  logger.debug(`Parsing ${streams.length} log stream message(s)`);
+
+  const stream = streams.find((stream: StreamConsumerData) => stream.name === streamKey);
+
+  if (!stream) {
+    throw new Error(`Stream not found for key ${streamKey}`);
+  }
+
+  return stream?.messages.map((streamMessageData: StreamConsumerMessageData) => ({
+    streamId: streamMessageData.id,
+    ...JSON.parse(streamMessageData.message.data)
+  }));
+}
+
 export function parseLogStreamMessageData(
   logger: Logger,
   logStreamMessageData: LogStreamMessageData[]
@@ -225,7 +246,7 @@ export async function acknowledgeLogStreamMessageData(
 
     logger.debug(`Acknowledging ${ids.length} messages`);
 
-    await repository.acknowledgeLogStreamMessages(redisClient, streamKey, groupName, ids);
+    await repository.acknowledgeLogStreamMessagesById(redisClient, streamKey, groupName, ids);
   } catch (err) {
     logger.error('Error processing messages:', err);
   }

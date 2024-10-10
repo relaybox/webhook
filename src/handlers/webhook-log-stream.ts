@@ -19,13 +19,10 @@ export async function handler(
 ): Promise<void> {
   const pgClient = await pgPool.connect();
 
-  console.log(logStreamMessageData);
-
   try {
     const parsedMessageData = parseLogStreamMessageData(logger, logStreamMessageData);
-    await bulkInsertWebhookLogs(logger, pgClient, parsedMessageData);
 
-    const ids = logStreamMessageData.map((messageData) => messageData.streamId);
+    await bulkInsertWebhookLogs(logger, pgClient, parsedMessageData);
 
     await acknowledgeLogStreamMessageData(
       logger,
