@@ -2,7 +2,6 @@ import EventEmitter from 'events';
 import { Logger } from 'winston';
 import { RedisClientType, RedisFunctions, RedisModules, RedisScripts } from 'redis';
 import { getLogger } from '@/util/logger.util';
-import { StreamConsumerData, StreamConsumerMessageData } from '@/module/types';
 
 const DEFAULT_CONSUMER_NAME = `consumer-${process.pid}`;
 const DEFAULT_POLLING_TIMEOUT = 10000;
@@ -12,7 +11,19 @@ const DEFAULT_MAX_BUFFER_LENGTH = 10;
 
 type RedisClient = RedisClientType<RedisModules, RedisFunctions, RedisScripts>;
 
-interface StreamConsumerOptions {
+export interface StreamConsumerData {
+  name: string;
+  messages: StreamConsumerMessageData[];
+}
+
+export interface StreamConsumerMessageData {
+  id: string;
+  message: {
+    [x: string]: string;
+  };
+}
+
+export interface StreamConsumerOptions {
   redisClient: RedisClient;
   streamKey: string;
   groupName: string;
@@ -23,7 +34,7 @@ interface StreamConsumerOptions {
   bufferMaxLength?: number;
 }
 
-export class StreamConsumer extends EventEmitter {
+export default class StreamConsumer extends EventEmitter {
   private redisClient: RedisClient;
   private streamKey: string;
   private groupName: string;

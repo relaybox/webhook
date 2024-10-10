@@ -7,8 +7,6 @@ import * as repository from './repository';
 import {
   LogStreamMessageData,
   RegisteredWebhook,
-  StreamConsumerData,
-  StreamConsumerMessageData,
   WebhookEvent,
   WebhookPayload,
   WebhookResponse
@@ -19,6 +17,7 @@ import webhookDispatchQueue, {
 } from './queues/dispatch';
 import { RedisClient } from '@/lib/redis';
 import { LOG_STREAM_KEY } from '..';
+import { StreamConsumerData, StreamConsumerMessageData } from '@/lib/stream-consumer';
 
 const SIGNATURE_HASHING_ALGORITHM = 'sha256';
 const SIGNATURE_BUFFER_ENCODING = 'utf-8';

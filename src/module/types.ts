@@ -63,14 +63,14 @@ export interface LogStreamMessageData {
   webhookResponse: WebhookResponse;
 }
 
-export interface StreamConsumerData {
-  name: string;
-  messages: StreamConsumerMessageData[];
-}
+// export interface StreamConsumerData {
+//   name: string;
+//   messages: StreamConsumerMessageData[];
+// }
 
-export interface StreamConsumerMessageData {
-  id: string;
-  message: {
-    [x: string]: string;
-  };
-}
+// export interface StreamConsumerMessageData {
+//   id: string;
+//   message: {
+//     [x: string]: string;
+//   };
+// }

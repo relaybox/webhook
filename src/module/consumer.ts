@@ -1,5 +1,5 @@
 import { RedisClient } from '@/lib/redis';
-import { StreamConsumer } from '@/lib/stream-consumer';
+import StreamConsumer from '@/lib/stream-consumer';
 import { Pool } from 'pg';
 import { Logger } from 'winston';
 import { handler as webhookLogStreamHandler } from '@/handlers/webhook-log-stream';
