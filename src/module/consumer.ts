@@ -1,6 +1,7 @@
 import { RedisClient } from '@/lib/redis';
 import { StreamConsumer } from '@/lib/stream-consumer';
 import { Pool } from 'pg';
+import { RedisClientOptions } from 'redis';
 import { Logger } from 'winston';
 
 interface StreamMessage {
@@ -11,13 +12,13 @@ interface StreamMessage {
 export async function startLogStreamConsumer(
   logger: Logger,
   pgPool: Pool,
-  redisClient: RedisClient,
+  connectionOptions: RedisClientOptions,
   streamKey: string,
   groupName: string
 ): Promise<StreamConsumer> {
   logger.info('Starting log stream consumer');
 
-  const streamConsumer = new StreamConsumer(redisClient, streamKey, groupName);
+  const streamConsumer = new StreamConsumer(connectionOptions, streamKey, groupName);
 
   await streamConsumer.connect();
 

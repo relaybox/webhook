@@ -1,26 +1,42 @@
 import EventEmitter from 'events';
-import { RedisClient } from './redis';
+import {
+  createClient,
+  RedisClientOptions,
+  RedisClientType,
+  RedisFunctions,
+  RedisModules,
+  RedisScripts
+} from 'redis';
 import os from 'os';
 import { getLogger } from '@/util/logger.util';
 import { Logger } from 'winston';
 
 const DEFAULT_CONSUMER_NAME = os.hostname();
 
+type RedisClient = RedisClientType<RedisModules, RedisFunctions, RedisScripts>;
+
 export class StreamConsumer extends EventEmitter {
   private redisClient: RedisClient;
   private redisBlockingClient: RedisClient;
   private streamKey: string;
   private groupName: string;
-  private consumerName: string = DEFAULT_CONSUMER_NAME;
+  private consumerName: string;
   private logger: Logger;
+  private isConsuming = true;
 
-  constructor(redisClient: RedisClient, streamKey: string, groupName: string) {
+  constructor(
+    connectionOptions: RedisClientOptions,
+    streamKey: string,
+    groupName: string,
+    consumerName: string = DEFAULT_CONSUMER_NAME
+  ) {
     super();
 
-    this.redisClient = redisClient;
-    this.redisBlockingClient = redisClient.duplicate();
+    this.redisClient = this.createClient(connectionOptions);
+    this.redisBlockingClient = this.createClient(connectionOptions);
     this.streamKey = streamKey;
     this.groupName = groupName;
+    this.consumerName = consumerName;
 
     this.logger = getLogger(`stream-consumer:${this.consumerName}`);
   }
@@ -28,7 +44,7 @@ export class StreamConsumer extends EventEmitter {
   async connect(): Promise<StreamConsumer> {
     this.logger.info(`Creating stream consumer`);
 
-    await this.redisBlockingClient.connect();
+    await this.connectClients();
     await this.createConsumerGroup();
 
     this.startConsumer();
@@ -36,6 +52,36 @@ export class StreamConsumer extends EventEmitter {
     this.logger.info(`Stream consumer is ready`);
 
     return this;
+  }
+
+  private connectClients(): Promise<RedisClient[]> {
+    return Promise.all([this.redisClient.connect(), this.redisBlockingClient.connect()]);
+  }
+
+  private disconnectClients(): Promise<string[]> {
+    return Promise.all([this.redisClient.quit(), this.redisBlockingClient.quit()]);
+  }
+
+  private createClient(connectionOptions: RedisClientOptions): RedisClient {
+    const client = createClient(connectionOptions);
+
+    client.on('connect', () => {
+      this.logger.info('Redis stream client connected');
+    });
+
+    client.on('error', (err) => {
+      this.logger.error(`Redis stream client connection error`, { err });
+    });
+
+    client.on('ready', () => {
+      this.logger.info('Redis stream client is ready');
+    });
+
+    client.on('end', () => {
+      this.logger.info('Redis stream client disconnected');
+    });
+
+    return client;
   }
 
   private async createConsumerGroup(): Promise<void> {
@@ -70,7 +116,7 @@ export class StreamConsumer extends EventEmitter {
       COUNT: 10
     };
 
-    while (true) {
+    while (this.isConsuming) {
       try {
         const data = await this.redisBlockingClient.xReadGroup(
           this.groupName,
@@ -86,6 +132,17 @@ export class StreamConsumer extends EventEmitter {
         this.logger.error('Error consuming messages from stream:', err);
         await new Promise((resolve) => setTimeout(resolve, 5000));
       }
+    }
+  }
+
+  public async disconnect(): Promise<void> {
+    this.logger.info('Closing stream consumer');
+
+    try {
+      this.isConsuming = false;
+      await this.disconnectClients();
+    } catch (err) {
+      this.logger.error('Error disconnecting Redis client', { err });
     }
   }
 }

@@ -1,10 +1,10 @@
 import 'dotenv/config';
 
 import { getLogger } from '@/util/logger.util';
-import { cleanupRedisClient, getRedisClient } from '@/lib/redis';
+import { cleanupRedisClient, connectionOptions, getRedisClient } from '@/lib/redis';
 import { cleanupPgPool, getPgPool } from '@/lib/pg';
 import { startWorker, stopWorker } from './module/worker';
-import { WEBHOOK_DISPATCH_QUEUE_NAME } from './module/queues';
+import { WEBHOOK_DISPATCH_QUEUE_NAME } from './module/queues/dispatch';
 import { ServiceWorker } from './module/types';
 import { startLogStreamConsumer } from './module/consumer';
 import { StreamConsumer } from './lib/stream-consumer';
@@ -31,7 +31,7 @@ async function startService() {
   logStreamConsumer = await startLogStreamConsumer(
     logger,
     pgPool,
-    redisClient,
+    connectionOptions,
     LOG_STREAM_KEY,
     LOG_STREAM_CONSUMER_NAME
   );
@@ -67,7 +67,8 @@ async function shutdown(signal: string): Promise<void> {
       stopWorker(logger, processWorker),
       stopWorker(logger, dispatchWorker),
       cleanupRedisClient(),
-      cleanupPgPool()
+      cleanupPgPool(),
+      logStreamConsumer.disconnect()
     ]);
 
     clearTimeout(shutdownTimeout);
