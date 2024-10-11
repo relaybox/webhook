@@ -27,6 +27,7 @@ export async function handler(
 
   try {
     const parsedMessageData = parseLogStreamMessages(logger, logStreamMessages);
+
     await bulkInsertWebhookLogs(logger, pgClient, parsedMessageData);
   } catch (err: unknown) {
     logger.error(`Failed to perist webhook log stream data`, { err });

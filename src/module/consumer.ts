@@ -5,10 +5,8 @@ import { Logger } from 'winston';
 import { handler as webhookLogStreamHandler } from '@/handlers/webhook-log-stream';
 import { parseBufferedLogStream } from './service';
 
-const LOG_STREAM_DEFAULT_MAX_LEN = Number(process.env.LOG_STREAM_DEFAULT_MAX_LEN);
-const LOG_STREAM_DEFAULT_TRIM_INTERVAL_MS = Number(process.env.LOG_STREAM_DEFAULT_TRIM_INTERVAL_MS);
-const LOG_STREAM_DEFAULT_MAX_BUFFER_LENGTH = Number(
-  process.env.LOG_STREAM_DEFAULT_MAX_BUFFER_LENGTH
+const LOG_STREAM_DEFAULT_BUFFER_MAX_LENGTH = Number(
+  process.env.LOG_STREAM_DEFAULT_BUFFER_MAX_LENGTH
 );
 
 export async function startLogStreamConsumer(
@@ -25,8 +23,7 @@ export async function startLogStreamConsumer(
     streamKey,
     groupName,
     blocking: true,
-    streamMaxLen: LOG_STREAM_DEFAULT_MAX_LEN,
-    bufferMaxLength: LOG_STREAM_DEFAULT_MAX_BUFFER_LENGTH
+    bufferMaxLength: LOG_STREAM_DEFAULT_BUFFER_MAX_LENGTH
   });
 
   streamConsumer.on('data', (messages: StreamConsumerMessage[]) => {

@@ -246,6 +246,7 @@ export async function bulkInsertWebhookLogs(
     await db.bulkInsertWebhookLogs(pgClient, queryPlaceholders, values);
   } catch (err: unknown) {
     logger.error(`Failed to bulk insert webhook logs`, { err });
+    throw err;
   }
 }
 

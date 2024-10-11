@@ -5,11 +5,8 @@ import { getLogger } from '@/util/logger.util';
 
 const DEFAULT_CONSUMER_NAME = `consumer-${process.pid}`;
 const DEFAULT_POLLING_TIMEOUT = 10000;
-const DEFAULT_MAX_LEN = 1000;
-const DEFAULT_TRIM_INTERVAL = 60000;
-const DEFAULT_MAX_BUFFER_LENGTH = 10;
+const DEFAULT_BUFFER_MAX_LENGTH = 10;
 const DEFAULT_CONSUMER_BLOCKING_TIMEOUT_MS = 10000;
-const DEFAULT_CONSUMER_IDLE_TIMEOUT_MS = 10000;
 
 type RedisClient = RedisClientType<RedisModules, RedisFunctions, RedisScripts>;
 
@@ -34,9 +31,7 @@ export interface StreamConsumerOptions {
   blockingTimeoutMs?: number;
   maxBlockingIterations?: number;
   pollingTimeoutMs?: number;
-  streamMaxLen?: number;
   bufferMaxLength?: number;
-  consumerIdleTimeoutMs?: number;
 }
 
 export default class StreamConsumer extends EventEmitter {
@@ -45,18 +40,15 @@ export default class StreamConsumer extends EventEmitter {
   private groupName: string;
   private consumerName: string;
   private logger: Logger;
-  private isConsuming = true;
   private blocking: boolean = false;
   private blockingTimeoutMs: number;
   private maxBlockingIterations: number | null;
   private currentBlockingIteration: number = 0;
   private pollingTimeoutMs: number;
   private pollTimeout: NodeJS.Timeout;
-  private streamMaxLen: number;
   private trimInterval: NodeJS.Timeout;
   private messageBuffer: any = [];
   private bufferMaxLength: number;
-  private consumerIdleTimeoutMs: number;
 
   constructor(opts: StreamConsumerOptions) {
     super();
@@ -69,10 +61,7 @@ export default class StreamConsumer extends EventEmitter {
     this.blocking = opts.blocking || true;
     this.blockingTimeoutMs = opts.blockingTimeoutMs || DEFAULT_CONSUMER_BLOCKING_TIMEOUT_MS;
     this.maxBlockingIterations = opts.maxBlockingIterations || null;
-    this.streamMaxLen = opts.streamMaxLen || DEFAULT_MAX_LEN;
-    this.bufferMaxLength = opts.bufferMaxLength || DEFAULT_MAX_BUFFER_LENGTH;
-    this.consumerIdleTimeoutMs = opts.consumerIdleTimeoutMs || DEFAULT_CONSUMER_IDLE_TIMEOUT_MS;
-    this.trimInterval = setInterval(() => this.trimStream(), DEFAULT_TRIM_INTERVAL);
+    this.bufferMaxLength = opts.bufferMaxLength || DEFAULT_BUFFER_MAX_LENGTH;
 
     this.logger = getLogger(`stream-consumer:${this.consumerName}`);
   }
@@ -104,7 +93,6 @@ export default class StreamConsumer extends EventEmitter {
     await this.redisClient.connect();
 
     await this.createConsumerGroup();
-    // await this.checkPendingMessages();
 
     if (this.blocking) {
       this.startBlockingConsumer();
@@ -149,12 +137,12 @@ export default class StreamConsumer extends EventEmitter {
       COUNT: 10
     };
 
-    while (this.isConsuming) {
+    while (true) {
       if (
         this.maxBlockingIterations &&
         this.currentBlockingIteration >= this.maxBlockingIterations
       ) {
-        this.logger.debug(`Blocking iterations reached, exiting`);
+        this.logger.debug(`Blocking max iterations reached, breaking blocking loop`);
         break;
       }
 
@@ -177,6 +165,7 @@ export default class StreamConsumer extends EventEmitter {
       } catch (err: unknown) {
         this.logger.error('Error consuming messages from stream:', err);
         await new Promise((resolve) => setTimeout(resolve, 5000));
+        this.emit('error', err);
       }
     }
   }
@@ -192,10 +181,13 @@ export default class StreamConsumer extends EventEmitter {
       }
     } catch (err: unknown) {
       this.logger.error('Push to message buffer failed', { err });
+      this.emit('error', err);
     }
   }
 
   private flushMessageBuffer(): void {
+    this.logger.debug(`Attempting to flush message buffer`);
+
     if (!this.messageBuffer.length) {
       this.logger.debug(`No messages in buffer`);
       return;
@@ -208,6 +200,7 @@ export default class StreamConsumer extends EventEmitter {
       this.messageBuffer = [];
     } catch (err: unknown) {
       this.logger.error('Flush message buffer failed', { err });
+      this.emit('error', err);
     }
   }
 
@@ -243,85 +236,29 @@ export default class StreamConsumer extends EventEmitter {
     this.pollTimeout = setTimeout(() => this.readStream(), this.pollingTimeoutMs);
   }
 
-  private trimStream(): void {
-    this.logger.debug(`Trimming stream`);
-
-    try {
-      this.redisClient.xTrim(this.streamKey, 'MAXLEN', this.streamMaxLen, {
-        strategyModifier: '~'
-      });
-    } catch (err: unknown) {
-      this.logger.error('Error trimming stream:', err);
-    }
-  }
-
-  // private async checkPendingMessages(): Promise<void> {
-  //   this.logger.info(`Checking pending messages`);
+  // private trimStream(): void {
+  //   this.logger.debug(`Trimming stream`);
 
   //   try {
-  //     const pendingMessages = await this.redisClient.xPending(this.streamKey, this.groupName);
-
-  //     if (!pendingMessages.pending) {
-  //       this.logger.info(`No pending messages found`);
-  //       return;
-  //     }
-
-  //     const { pending, firstId, lastId, consumers } = pendingMessages;
-
-  //     if (pending > 0 && firstId) {
-  //       await this.claimPendingMessages(pending, firstId, lastId);
-  //     }
+  //     this.redisClient.xTrim(this.streamKey, 'MAXLEN', this.streamMaxLen, {
+  //       strategyModifier: '~'
+  //     });
   //   } catch (err: unknown) {
-  //     this.logger.error('Error checking pending messages:', err);
+  //     this.logger.error('Error trimming stream:', err);
   //   }
   // }
-
-  // private async claimPendingMessages(
-  //   pending: number,
-  //   firstId: string,
-  //   lastId: string | null
-  // ): Promise<void> {
-  //   this.logger.debug(
-  //     `Attempting to claim ${pending} pending messages in range ${firstId} - ${lastId}`
-  //   );
-
-  //   try {
-  //     const claimed = await this.redisClient.xAutoClaim(
-  //       this.streamKey,
-  //       this.groupName,
-  //       this.consumerName,
-  //       this.consumerIdleTimeoutMs,
-  //       firstId,
-  //       {
-  //         COUNT: pending
-  //       }
-  //     );
-
-  //     this.logger.debug(`Claimed ${claimed.messages.length} idle message(s)`);
-
-  //     if (claimed.messages.length) {
-  //       this.pushToMessageBuffer(claimed.messages);
-  //     }
-  //   } catch (err) {
-  //     this.logger.error('Error claiming pending messages:', err);
-  //   }
-  // }
-
-  public unblockOnData(): void {
-    this.isConsuming = false;
-  }
 
   public async disconnect(): Promise<void> {
     this.logger.info('Closing stream consumer');
 
     try {
-      this.isConsuming = false;
       this.flushMessageBuffer();
       await this.redisClient.quit();
       clearTimeout(this.pollTimeout);
       clearInterval(this.trimInterval);
     } catch (err) {
       this.logger.error('Error disconnecting Redis client', { err });
+      this.emit('error', err);
     }
   }
 }
