@@ -240,9 +240,9 @@ export default class StreamConsumer extends EventEmitter {
 
     try {
       this.isConsuming = false;
-      this.flushMessageBuffer();
-      await this.redisClient.quit();
+      // this.flushMessageBuffer();
       clearTimeout(this.pollTimeout);
+      await this.redisClient.quit();
     } catch (err) {
       this.logger.error('Error disconnecting Redis client', { err });
       this.emit('error', err);

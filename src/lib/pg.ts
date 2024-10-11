@@ -44,8 +44,8 @@ export function getPgPool(): Pool {
 export async function cleanupPgPool(): Promise<void> {
   if (pgPool) {
     try {
-      logger.info('Closing pg pool');
       await pgPool.end();
+      logger.info('Pg pool ended');
     } catch (err) {
       logger.error('Error ending pg pool', { err });
     } finally {
