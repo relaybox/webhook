@@ -29,13 +29,17 @@ export async function startLogStreamConsumer(
     bufferMaxLength: LOG_STREAM_DEFAULT_BUFFER_MAX_LENGTH
   });
 
-  streamConsumer.on('data', (messages: StreamConsumerMessage[]) => {
+  streamConsumer.on('data', async (messages: StreamConsumerMessage[]) => {
     logger.debug(`Processing ${messages.length} log stream message(s)`);
 
     try {
-      // const parsedMessages = parseBufferedLogStream(logger, messages);
-
-      webhookLogStreamHandler(pgPool, redisClient, LOG_STREAM_KEY, LOG_STREAM_GROUP_NAME, messages);
+      await webhookLogStreamHandler(
+        pgPool,
+        redisClient,
+        LOG_STREAM_KEY,
+        LOG_STREAM_GROUP_NAME,
+        messages
+      );
     } catch (err: unknown) {
       logger.error('Error processing log stream message data', { err });
     }
