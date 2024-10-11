@@ -1,5 +1,5 @@
 import winston, { format } from 'winston';
-import { colorize } from 'json-colorizer';
+// import { colorize } from 'json-colorizer';
 
 const { printf, combine, timestamp, errors, colorize: winstonColorize } = format;
 

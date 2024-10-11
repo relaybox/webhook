@@ -182,7 +182,7 @@ export default class StreamConsumer extends EventEmitter {
   }
 
   private pushToMessageBuffer(messages: (StreamConsumerMessage | null)[]): void {
-    this.logger.debug(`Buffering ${messages.length} messages from stream consumer`);
+    this.logger.debug(`Buffering ${messages.length} message(s) from stream consumer`);
 
     try {
       this.messageBuffer = this.messageBuffer.concat(messages);
@@ -201,7 +201,7 @@ export default class StreamConsumer extends EventEmitter {
       return;
     }
 
-    this.logger.debug(`Flushing stream data buffer`);
+    this.logger.debug(`Flushing ${this.messageBuffer.length} message(s) from buffer`);
 
     try {
       this.emit('data', this.messageBuffer);
@@ -265,6 +265,8 @@ export default class StreamConsumer extends EventEmitter {
         this.logger.info(`No pending messages found`);
         return;
       }
+
+      console.log(pendingMessages);
 
       const { pending, firstId, lastId, consumers } = pendingMessages;
 
