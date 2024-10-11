@@ -39,12 +39,20 @@ export function startWorker(
     logger.info(`${worker.name} worker ready`);
   });
 
+  worker.on('drained', () => {
+    logger.info(`${worker.name} worker drained`);
+  });
+
   worker.on('failed', (job: Job | undefined, err: Error, prev: string) => {
     logger.error(`${worker.name} failed to process job ${job?.id}`, { err });
   });
 
   worker.on('active', (job: Job) => {
-    logger.debug(`${worker.name} worker active, processing ${job.id}`);
+    logger.debug(`${worker.name} worker active, processing job ${job.id}`);
+  });
+
+  worker.on('closed', () => {
+    logger.info(`${worker.name} worker closed`);
   });
 
   return worker;

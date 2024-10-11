@@ -2,11 +2,7 @@ import { Pool } from 'pg';
 import { RedisClient } from '@/lib/redis';
 import { getLogger } from '@/util/logger.util';
 import { LogStreamMessage } from '@/module/types';
-import {
-  acknowledgeLogStreamMessages,
-  bulkInsertWebhookLogs,
-  parseLogStreamMessages
-} from '@/module/service';
+import { ackStreamMessages, bulkInsertWebhookLogs, parseLogStreamMessages } from '@/module/service';
 
 const logger = getLogger('webhook-log-stream');
 
@@ -34,13 +30,6 @@ export async function handler(
     throw err;
   } finally {
     pgClient.release();
-
-    await acknowledgeLogStreamMessages(
-      logger,
-      redisClient,
-      streamKey,
-      groupName,
-      logStreamMessages
-    );
+    ackStreamMessages(logger, redisClient, streamKey, groupName, logStreamMessages);
   }
 }

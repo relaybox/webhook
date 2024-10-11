@@ -10,7 +10,7 @@ export function addMessageToLogStream(
   return redisClient.xAdd(streamKey, id, { data: messageDataToString });
 }
 
-export async function acknowledgeLogStreamMessagesById(
+export async function ackStreamMessages(
   redisClient: RedisClient,
   streamKey: string,
   groupName: string,

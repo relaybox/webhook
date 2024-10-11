@@ -1,6 +1,13 @@
 import EventEmitter from 'events';
 import { Logger } from 'winston';
-import { RedisClientType, RedisFunctions, RedisModules, RedisScripts } from 'redis';
+import {
+  createClient,
+  RedisClientOptions,
+  RedisClientType,
+  RedisFunctions,
+  RedisModules,
+  RedisScripts
+} from 'redis';
 import { getLogger } from '@/util/logger.util';
 
 const DEFAULT_CONSUMER_NAME = `consumer-${process.pid}`;
@@ -22,7 +29,7 @@ export interface StreamConsumerMessage {
 }
 
 export interface StreamConsumerOptions {
-  redisClient: RedisClient;
+  connectionOptions: RedisClientOptions;
   streamKey: string;
   groupName: string;
   consumerName?: string;
@@ -50,7 +57,7 @@ export default class StreamConsumer extends EventEmitter {
   constructor(opts: StreamConsumerOptions) {
     super();
 
-    this.redisClient = opts.redisClient.duplicate();
+    this.redisClient = createClient(opts.connectionOptions);
     this.streamKey = opts.streamKey;
     this.groupName = opts.groupName;
     this.consumerName = opts.consumerName || DEFAULT_CONSUMER_NAME;
@@ -185,11 +192,11 @@ export default class StreamConsumer extends EventEmitter {
     this.logger.debug(`Attempting to flush message buffer`);
 
     if (!this.messageBuffer.length) {
-      this.logger.debug(`No messages in buffer`);
+      this.logger.debug(`No buffered messages`);
       return;
     }
 
-    this.logger.debug(`Flushing ${this.messageBuffer.length} message(s) from buffer`);
+    this.logger.debug(`Flushing ${this.messageBuffer.length} buffered message(s)`);
 
     try {
       this.emit('data', this.messageBuffer);
@@ -240,7 +247,7 @@ export default class StreamConsumer extends EventEmitter {
 
     try {
       this.isConsuming = false;
-      // this.flushMessageBuffer();
+      this.flushMessageBuffer();
       clearTimeout(this.pollTimeout);
       await this.redisClient.quit();
     } catch (err) {

@@ -4,24 +4,28 @@ import { Pool } from 'pg';
 import { Logger } from 'winston';
 import { handler as webhookLogStreamHandler } from '@/handlers/webhook-log-stream';
 import { parseBufferedLogStream } from './service';
+import { RedisClientOptions } from 'redis';
 
 const LOG_STREAM_DEFAULT_BUFFER_MAX_LENGTH = Number(
   process.env.LOG_STREAM_DEFAULT_BUFFER_MAX_LENGTH
 );
 
+export const LOG_STREAM_KEY = 'logs:webhook';
+export const LOG_STREAM_GROUP_NAME = 'webhook-log-group';
+export const LOG_STREAM_CONSUMER_NAME = 'webhook-log-consumer';
+
 export async function startLogStreamConsumer(
   logger: Logger,
   pgPool: Pool,
   redisClient: RedisClient,
-  streamKey: string,
-  groupName: string
+  connectionOptions: RedisClientOptions
 ): Promise<StreamConsumer> {
   logger.info('Starting log stream consumer');
 
   const streamConsumer = new StreamConsumer({
-    redisClient,
-    streamKey,
-    groupName,
+    connectionOptions,
+    streamKey: LOG_STREAM_KEY,
+    groupName: LOG_STREAM_GROUP_NAME,
     bufferMaxLength: LOG_STREAM_DEFAULT_BUFFER_MAX_LENGTH
   });
 
@@ -30,13 +34,18 @@ export async function startLogStreamConsumer(
 
     try {
       const parsedMessages = parseBufferedLogStream(logger, messages);
-      webhookLogStreamHandler(pgPool, redisClient, streamKey, groupName, parsedMessages);
+
+      webhookLogStreamHandler(
+        pgPool,
+        redisClient,
+        LOG_STREAM_KEY,
+        LOG_STREAM_GROUP_NAME,
+        parsedMessages
+      );
     } catch (err: unknown) {
       logger.error('Error processing log stream message data', { err });
     }
   });
 
-  await streamConsumer.connect();
-
-  return streamConsumer;
+  return streamConsumer.connect();
 }

@@ -1,40 +1,29 @@
 import 'dotenv/config';
 
 import { getLogger } from '@/util/logger.util';
-import { cleanupRedisClient, getRedisClient } from '@/lib/redis';
+import { cleanupRedisClient, connectionOptions, getRedisClient } from '@/lib/redis';
 import { cleanupPgPool, getPgPool } from '@/lib/pg';
 import { startWorker, stopWorker } from './module/worker';
-import { WEBHOOK_DISPATCH_QUEUE_NAME } from './module/queues/dispatch';
 import { ServiceWorker } from './module/types';
 import { startLogStreamConsumer } from './module/consumer';
 import StreamConsumer from './lib/stream-consumer';
+import { WEBHOOK_DISPATCH_QUEUE_NAME } from './module/queues/dispatch';
+import { WEBHOOK_PROCESS_QUEUE_NAME } from './module/queues/process';
 
-const logger = getLogger('webhook');
+const logger = getLogger('webhook-service');
 const pgPool = getPgPool();
 const redisClient = getRedisClient();
-
-const WEBHOOK_PROCESS_QUEUE_NAME = 'webhook-process';
 
 let processWorker: ServiceWorker;
 let dispatchWorker: ServiceWorker;
 let logStreamConsumer: StreamConsumer;
-
-export const LOG_STREAM_KEY = 'logs:webhook';
-export const LOG_STREAM_GROUP_NAME = 'webhook-log-group';
-export const LOG_STREAM_CONSUMER_NAME = 'webhook-log-consumer';
 
 async function startService() {
   await initializeConnections();
 
   processWorker = startWorker(logger, pgPool, redisClient, WEBHOOK_PROCESS_QUEUE_NAME, 10);
   dispatchWorker = startWorker(logger, pgPool, redisClient, WEBHOOK_DISPATCH_QUEUE_NAME);
-  logStreamConsumer = await startLogStreamConsumer(
-    logger,
-    pgPool,
-    redisClient,
-    LOG_STREAM_KEY,
-    LOG_STREAM_CONSUMER_NAME
-  );
+  logStreamConsumer = await startLogStreamConsumer(logger, pgPool, redisClient, connectionOptions);
 }
 
 async function initializeConnections(): Promise<void> {
@@ -64,8 +53,10 @@ async function shutdown(signal: string): Promise<void> {
 
   try {
     await Promise.all([
-      stopWorker(logger, processWorker),
-      stopWorker(logger, dispatchWorker),
+      // stopWorker(logger, processWorker),
+      // stopWorker(logger, dispatchWorker),
+      processWorker?.close(),
+      dispatchWorker?.close(),
       cleanupRedisClient(),
       cleanupPgPool(),
       logStreamConsumer.disconnect()

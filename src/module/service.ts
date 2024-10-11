@@ -16,8 +16,8 @@ import webhookDispatchQueue, {
   WebhookDispatchJobName
 } from './queues/dispatch';
 import { RedisClient } from '@/lib/redis';
-import { LOG_STREAM_KEY } from '..';
 import { StreamConsumerData, StreamConsumerMessage } from '@/lib/stream-consumer';
+import { LOG_STREAM_KEY } from './consumer';
 
 const SIGNATURE_HASHING_ALGORITHM = 'sha256';
 const SIGNATURE_BUFFER_ENCODING = 'utf-8';
@@ -250,7 +250,7 @@ export async function bulkInsertWebhookLogs(
   }
 }
 
-export async function acknowledgeLogStreamMessages(
+export async function ackStreamMessages(
   logger: Logger,
   redisClient: RedisClient,
   streamKey: string,
@@ -262,7 +262,7 @@ export async function acknowledgeLogStreamMessages(
 
     logger.debug(`Acknowledging ${ids.length} stream message(s)`, { streamKey, groupName });
 
-    await repository.acknowledgeLogStreamMessagesById(redisClient, streamKey, groupName, ids);
+    await repository.ackStreamMessages(redisClient, streamKey, groupName, ids);
   } catch (err) {
     logger.error('Error processing messages:', err);
   }
