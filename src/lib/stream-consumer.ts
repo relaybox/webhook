@@ -13,10 +13,10 @@ type RedisClient = RedisClientType<RedisModules, RedisFunctions, RedisScripts>;
 
 export interface StreamConsumerData {
   name: string;
-  messages: StreamConsumerMessageData[];
+  messages: StreamConsumerMessage[];
 }
 
-export interface StreamConsumerMessageData {
+export interface StreamConsumerMessage {
   id: string;
   message: {
     [x: string]: string;
@@ -55,12 +55,12 @@ export default class StreamConsumer extends EventEmitter {
     this.redisClient = opts.redisClient.duplicate();
     this.streamKey = opts.streamKey;
     this.groupName = opts.groupName;
-    this.consumerName = opts?.consumerName || DEFAULT_CONSUMER_NAME;
+    this.consumerName = opts.consumerName || DEFAULT_CONSUMER_NAME;
     this.pollingTimeoutMs = opts.pollingTimeoutMs || DEFAULT_POLLING_TIMEOUT;
-    this.blocking = opts.blocking || false;
+    this.blocking = opts.blocking || true;
     this.streamMaxLen = opts.streamMaxLen || DEFAULT_MAX_LEN;
-    this.trimInterval = setInterval(() => this.trimStream(), DEFAULT_TRIM_INTERVAL);
     this.bufferMaxLength = opts.bufferMaxLength || DEFAULT_MAX_BUFFER_LENGTH;
+    this.trimInterval = setInterval(() => this.trimStream(), DEFAULT_TRIM_INTERVAL);
 
     this.logger = getLogger(`stream-consumer:${this.consumerName}`);
   }
@@ -68,33 +68,25 @@ export default class StreamConsumer extends EventEmitter {
   async connect(): Promise<StreamConsumer> {
     this.logger.info(`Creating stream consumer`);
 
+    const logData = {
+      streamKey: this.streamKey,
+      groupName: this.groupName
+    };
+
     this.redisClient.on('connect', () => {
-      this.logger.info(`Redis stream consumer client connected`, {
-        streamKey: this.streamKey,
-        groupName: this.groupName
-      });
+      this.logger.info(`Redis stream consumer client connected`, logData);
     });
 
     this.redisClient.on('error', (err) => {
-      this.logger.error(`Redis stream consumer client connection error`, {
-        err,
-        streamKey: this.streamKey,
-        groupName: this.groupName
-      });
+      this.logger.error(`Redis stream consumer client connection error`, { ...logData, err });
     });
 
     this.redisClient.on('ready', () => {
-      this.logger.info(`Redis stream consumer client is ready`, {
-        streamKey: this.streamKey,
-        groupName: this.groupName
-      });
+      this.logger.info(`Redis stream consumer client is ready`, logData);
     });
 
     this.redisClient.on('end', () => {
-      this.logger.info(`Redis stream consumer client disconnected`, {
-        streamKey: this.streamKey,
-        groupName: this.groupName
-      });
+      this.logger.info(`Redis stream consumer client disconnected`, logData);
     });
 
     await this.redisClient.connect();
@@ -156,9 +148,9 @@ export default class StreamConsumer extends EventEmitter {
 
         if (data) {
           const messages = data.flatMap((stream: StreamConsumerData) => stream.messages);
-          this.pushToStreamDataBuffer(messages);
+          this.pushToMessageBuffer(messages);
         } else {
-          this.flushStreamDataBuffer();
+          this.flushMessageBuffer();
         }
       } catch (err: unknown) {
         this.logger.error('Error consuming messages from stream:', err);
@@ -167,21 +159,21 @@ export default class StreamConsumer extends EventEmitter {
     }
   }
 
-  private pushToStreamDataBuffer(messages: (StreamConsumerMessageData | null)[]): void {
+  private pushToMessageBuffer(messages: (StreamConsumerMessage | null)[]): void {
     this.logger.debug(`Buffering stream data`);
 
     try {
       this.messageBuffer = this.messageBuffer.concat(messages);
 
       if (this.messageBuffer.length >= this.bufferMaxLength) {
-        this.flushStreamDataBuffer();
+        this.flushMessageBuffer();
       }
     } catch (err: unknown) {
       this.logger.error('Stream message buffering failed');
     }
   }
 
-  private flushStreamDataBuffer(): void {
+  private flushMessageBuffer(): void {
     if (!this.messageBuffer.length) {
       this.logger.debug(`No messages in buffer`);
       return;
@@ -286,7 +278,7 @@ export default class StreamConsumer extends EventEmitter {
       this.logger.debug(`Claimed ${claimed.messages.length} idle message(s)`);
 
       if (claimed.messages.length) {
-        this.pushToStreamDataBuffer(claimed.messages);
+        this.pushToMessageBuffer(claimed.messages);
       }
     } catch (err) {
       this.logger.error('Error claiming pending messages:', err);
@@ -298,7 +290,7 @@ export default class StreamConsumer extends EventEmitter {
 
     try {
       this.isConsuming = false;
-      this.flushStreamDataBuffer();
+      this.flushMessageBuffer();
       await this.redisClient.quit();
       clearTimeout(this.pollTimeout);
       clearInterval(this.trimInterval);

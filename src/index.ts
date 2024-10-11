@@ -7,7 +7,7 @@ import { startWorker, stopWorker } from './module/worker';
 import { WEBHOOK_DISPATCH_QUEUE_NAME } from './module/queues/dispatch';
 import { ServiceWorker } from './module/types';
 import { startLogStreamConsumer } from './module/consumer';
-import { StreamConsumer } from './lib/stream-consumer';
+import StreamConsumer from './lib/stream-consumer';
 
 const logger = getLogger('webhook');
 const pgPool = getPgPool();

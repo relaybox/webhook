@@ -17,7 +17,7 @@ import webhookDispatchQueue, {
 } from './queues/dispatch';
 import { RedisClient } from '@/lib/redis';
 import { LOG_STREAM_KEY } from '..';
-import { StreamConsumerData, StreamConsumerMessageData } from '@/lib/stream-consumer';
+import { StreamConsumerData, StreamConsumerMessage } from '@/lib/stream-consumer';
 
 const SIGNATURE_HASHING_ALGORITHM = 'sha256';
 const SIGNATURE_BUFFER_ENCODING = 'utf-8';
@@ -184,7 +184,7 @@ export function parseRawLogStream(
     throw new Error(`Stream not found for key ${streamKey}`);
   }
 
-  return stream?.messages.map((streamMessageData: StreamConsumerMessageData) => ({
+  return stream?.messages.map((streamMessageData: StreamConsumerMessage) => ({
     streamId: streamMessageData.id,
     ...JSON.parse(streamMessageData.message.data)
   }));
@@ -192,11 +192,11 @@ export function parseRawLogStream(
 
 export function parseBufferedLogStream(
   logger: Logger,
-  messages: StreamConsumerMessageData[]
+  messages: StreamConsumerMessage[]
 ): LogStreamMessageData[] {
   logger.debug(`Parsing buffered ${messages.length} log stream message(s)`);
 
-  return messages.map((streamMessageData: StreamConsumerMessageData) => ({
+  return messages.map((streamMessageData: StreamConsumerMessage) => ({
     streamId: streamMessageData.id,
     ...JSON.parse(streamMessageData.message.data)
   }));
