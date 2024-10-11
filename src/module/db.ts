@@ -55,7 +55,9 @@ export function bulkInsertWebhookLogs(
     INSERT INTO application_webhook_logs (
       "appId", "appPid", "webhookId", "webhookRequestId", status, "statusText", "createdAt"
     )
-    VALUES ${queryPlaceholders};
+    VALUES ${queryPlaceholders} 
+    ON CONFLICT 
+    DO NOTHING;
   `;
 
   return pgClient.query(query, values);

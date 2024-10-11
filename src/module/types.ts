@@ -57,7 +57,7 @@ export interface Session {
   user?: AuthUser;
 }
 
-export interface LogStreamMessageData {
+export interface LogStreamMessage {
   streamId: string;
   webhook: RegisteredWebhook;
   webhookResponse: WebhookResponse;

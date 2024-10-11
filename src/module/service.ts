@@ -5,7 +5,7 @@ import { createHmac } from 'crypto';
 import * as db from './db';
 import * as repository from './repository';
 import {
-  LogStreamMessageData,
+  LogStreamMessage,
   RegisteredWebhook,
   WebhookEvent,
   WebhookPayload,
@@ -175,7 +175,7 @@ export function parseRawLogStream(
   logger: Logger,
   streams: StreamConsumerData[],
   streamKey: string
-): LogStreamMessageData[] {
+): LogStreamMessage[] {
   logger.debug(`Parsing ${streams.length} log stream message(s)`);
 
   const stream = streams.find((stream: StreamConsumerData) => stream.name === streamKey);
@@ -193,7 +193,7 @@ export function parseRawLogStream(
 export function parseBufferedLogStream(
   logger: Logger,
   messages: StreamConsumerMessage[]
-): LogStreamMessageData[] {
+): LogStreamMessage[] {
   logger.debug(`Parsing buffered ${messages.length} log stream message(s)`);
 
   return messages.map((streamMessageData: StreamConsumerMessage) => ({
@@ -202,13 +202,13 @@ export function parseBufferedLogStream(
   }));
 }
 
-export function parseLogStreamMessageData(
+export function parseLogStreamMessages(
   logger: Logger,
-  logStreamMessageData: LogStreamMessageData[]
+  logStreamMessages: LogStreamMessage[]
 ): (string | number)[][] {
-  logger.debug(`Parsing ${logStreamMessageData.length} log stream message(s)`);
+  logger.debug(`Parsing ${logStreamMessages.length} log stream message(s)`);
 
-  return logStreamMessageData.map((messageData) => {
+  return logStreamMessages.map((messageData) => {
     const { webhook, webhookResponse } = messageData;
 
     return [
@@ -249,15 +249,15 @@ export async function bulkInsertWebhookLogs(
   }
 }
 
-export async function acknowledgeLogStreamMessage(
+export async function acknowledgeLogStreamMessages(
   logger: Logger,
   redisClient: RedisClient,
   streamKey: string,
   groupName: string,
-  logStreamMessageData: LogStreamMessageData[]
+  logStreamMessages: LogStreamMessage[]
 ): Promise<void> {
   try {
-    const ids = logStreamMessageData.map((messageData) => messageData.streamId);
+    const ids = logStreamMessages.map((message) => message.streamId);
 
     logger.debug(`Acknowledging ${ids.length} stream message(s)`, { streamKey, groupName });
 

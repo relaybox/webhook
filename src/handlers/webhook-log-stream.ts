@@ -1,11 +1,11 @@
 import { Pool } from 'pg';
 import { RedisClient } from '@/lib/redis';
 import { getLogger } from '@/util/logger.util';
-import { LogStreamMessageData } from '@/module/types';
+import { LogStreamMessage } from '@/module/types';
 import {
-  acknowledgeLogStreamMessage,
+  acknowledgeLogStreamMessages,
   bulkInsertWebhookLogs,
-  parseLogStreamMessageData
+  parseLogStreamMessages
 } from '@/module/service';
 
 const logger = getLogger('webhook-logger');
@@ -15,28 +15,31 @@ export async function handler(
   redisClient: RedisClient,
   streamKey: string,
   groupName: string,
-  logStreamMessageData: LogStreamMessageData[]
+  logStreamMessages: LogStreamMessage[]
 ): Promise<void> {
-  logger.info(`Processing log stream data`, { streamKey, groupName });
+  logger.info(`Processing log stream data`, {
+    streamKey,
+    groupName,
+    batchSize: logStreamMessages.length
+  });
 
   const pgClient = await pgPool.connect();
 
   try {
-    const parsedMessageData = parseLogStreamMessageData(logger, logStreamMessageData);
-
+    const parsedMessageData = parseLogStreamMessages(logger, logStreamMessages);
     await bulkInsertWebhookLogs(logger, pgClient, parsedMessageData);
+  } catch (err: unknown) {
+    logger.error(`Failed to perist webhook log stream data`, { err });
+    throw err;
+  } finally {
+    pgClient.release();
 
-    await acknowledgeLogStreamMessage(
+    await acknowledgeLogStreamMessages(
       logger,
       redisClient,
       streamKey,
       groupName,
-      logStreamMessageData
+      logStreamMessages
     );
-  } catch (err: unknown) {
-    logger.error(`Failed to log webhook event`, { err });
-    throw err;
-  } finally {
-    pgClient.release();
   }
 }

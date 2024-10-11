@@ -33,7 +33,6 @@ export async function startLogStreamConsumer(
     logger.debug(`Processing ${messages.length} log stream message(s)`);
 
     try {
-      // const messages = parseRawLogStream(logger, data, streamKey);
       const parsedMessages = parseBufferedLogStream(logger, messages);
       webhookLogStreamHandler(pgPool, redisClient, streamKey, groupName, parsedMessages);
     } catch (err: unknown) {

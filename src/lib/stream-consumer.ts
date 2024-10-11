@@ -104,7 +104,7 @@ export default class StreamConsumer extends EventEmitter {
     await this.redisClient.connect();
 
     await this.createConsumerGroup();
-    await this.checkPendingMessages();
+    // await this.checkPendingMessages();
 
     if (this.blocking) {
       this.startBlockingConsumer();
@@ -182,7 +182,7 @@ export default class StreamConsumer extends EventEmitter {
   }
 
   private pushToMessageBuffer(messages: (StreamConsumerMessage | null)[]): void {
-    this.logger.debug(`Buffering ${messages.length} message(s) from stream consumer`);
+    this.logger.debug(`Buffering ${messages.length} message(s)`);
 
     try {
       this.messageBuffer = this.messageBuffer.concat(messages);
@@ -255,59 +255,57 @@ export default class StreamConsumer extends EventEmitter {
     }
   }
 
-  private async checkPendingMessages(): Promise<void> {
-    this.logger.info(`Checking pending messages`);
+  // private async checkPendingMessages(): Promise<void> {
+  //   this.logger.info(`Checking pending messages`);
 
-    try {
-      const pendingMessages = await this.redisClient.xPending(this.streamKey, this.groupName);
+  //   try {
+  //     const pendingMessages = await this.redisClient.xPending(this.streamKey, this.groupName);
 
-      if (!pendingMessages.pending) {
-        this.logger.info(`No pending messages found`);
-        return;
-      }
+  //     if (!pendingMessages.pending) {
+  //       this.logger.info(`No pending messages found`);
+  //       return;
+  //     }
 
-      console.log(pendingMessages);
+  //     const { pending, firstId, lastId, consumers } = pendingMessages;
 
-      const { pending, firstId, lastId, consumers } = pendingMessages;
+  //     if (pending > 0 && firstId) {
+  //       await this.claimPendingMessages(pending, firstId, lastId);
+  //     }
+  //   } catch (err: unknown) {
+  //     this.logger.error('Error checking pending messages:', err);
+  //   }
+  // }
 
-      if (pending > 0 && firstId) {
-        await this.claimPendingMessages(pending, firstId, lastId);
-      }
-    } catch (err: unknown) {
-      this.logger.error('Error checking pending messages:', err);
-    }
-  }
+  // private async claimPendingMessages(
+  //   pending: number,
+  //   firstId: string,
+  //   lastId: string | null
+  // ): Promise<void> {
+  //   this.logger.debug(
+  //     `Attempting to claim ${pending} pending messages in range ${firstId} - ${lastId}`
+  //   );
 
-  private async claimPendingMessages(
-    pending: number,
-    firstId: string,
-    lastId: string | null
-  ): Promise<void> {
-    this.logger.debug(
-      `Attempting to claim ${pending} pending messages in range ${firstId} - ${lastId}`
-    );
+  //   try {
+  //     const claimed = await this.redisClient.xAutoClaim(
+  //       this.streamKey,
+  //       this.groupName,
+  //       this.consumerName,
+  //       this.consumerIdleTimeoutMs,
+  //       firstId,
+  //       {
+  //         COUNT: pending
+  //       }
+  //     );
 
-    try {
-      const claimed = await this.redisClient.xAutoClaim(
-        this.streamKey,
-        this.groupName,
-        this.consumerName,
-        this.consumerIdleTimeoutMs,
-        firstId,
-        {
-          COUNT: pending
-        }
-      );
+  //     this.logger.debug(`Claimed ${claimed.messages.length} idle message(s)`);
 
-      this.logger.debug(`Claimed ${claimed.messages.length} idle message(s)`);
-
-      if (claimed.messages.length) {
-        this.pushToMessageBuffer(claimed.messages);
-      }
-    } catch (err) {
-      this.logger.error('Error claiming pending messages:', err);
-    }
-  }
+  //     if (claimed.messages.length) {
+  //       this.pushToMessageBuffer(claimed.messages);
+  //     }
+  //   } catch (err) {
+  //     this.logger.error('Error claiming pending messages:', err);
+  //   }
+  // }
 
   public unblockOnData(): void {
     this.isConsuming = false;
