@@ -190,7 +190,7 @@ export function parseRawLogStream(
   }));
 }
 
-export function parseBufferedLogStream(
+export function parseStreamConsumerMessages(
   logger: Logger,
   messages: StreamConsumerMessage[]
 ): LogStreamMessage[] {
@@ -226,14 +226,14 @@ export function parseLogStreamMessages(
 export async function bulkInsertWebhookLogs(
   logger: Logger,
   pgClient: PoolClient,
-  rows: (string | number)[][]
+  parsedLogStreamMessages: (string | number)[][]
 ): Promise<void> {
-  logger.debug(`Bulk inserting ${rows.length} webhook log(s)`);
+  logger.debug(`Bulk inserting ${parsedLogStreamMessages.length} webhook log(s)`);
 
   try {
-    const placeholdersPerRow = rows[0].length;
+    const placeholdersPerRow = parsedLogStreamMessages[0].length;
 
-    const queryPlaceholders = rows.map((_, i) => {
+    const queryPlaceholders = parsedLogStreamMessages.map((_, i) => {
       const baseIndex = i * placeholdersPerRow + 1;
       const arrayParams = { length: placeholdersPerRow };
       const placeholders = Array.from(arrayParams, (_, j) => `$${baseIndex + j}`);
@@ -241,7 +241,7 @@ export async function bulkInsertWebhookLogs(
       return `(${placeholders.join(', ')})`;
     });
 
-    const values = rows.flat();
+    const values = parsedLogStreamMessages.flat();
 
     await db.bulkInsertWebhookLogs(pgClient, queryPlaceholders, values);
   } catch (err: unknown) {

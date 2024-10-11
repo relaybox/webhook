@@ -3,7 +3,6 @@ import StreamConsumer, { StreamConsumerMessage } from '@/lib/stream-consumer';
 import { Pool } from 'pg';
 import { Logger } from 'winston';
 import { handler as webhookLogStreamHandler } from '@/handlers/webhook-log-stream';
-import { parseBufferedLogStream } from './service';
 import { RedisClientOptions } from 'redis';
 
 const LOG_STREAM_DEFAULT_BUFFER_MAX_LENGTH = Number(
