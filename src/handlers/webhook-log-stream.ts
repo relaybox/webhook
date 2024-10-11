@@ -1,8 +1,13 @@
 import { Pool } from 'pg';
 import { RedisClient } from '@/lib/redis';
 import { getLogger } from '@/util/logger.util';
-import { LogStreamMessage } from '@/module/types';
-import { ackStreamMessages, bulkInsertWebhookLogs, parseLogStreamMessages } from '@/module/service';
+import {
+  ackStreamMessages,
+  bulkInsertWebhookLogs,
+  parseBufferedLogStream,
+  parseLogStreamMessages
+} from '@/module/service';
+import { StreamConsumerMessage } from '@/lib/stream-consumer';
 
 const logger = getLogger('webhook-log-stream');
 
@@ -11,18 +16,20 @@ export async function handler(
   redisClient: RedisClient,
   streamKey: string,
   groupName: string,
-  logStreamMessages: LogStreamMessage[]
+  messages: StreamConsumerMessage[]
 ): Promise<void> {
   logger.info(`Handling webhook log stream data`, {
     streamKey,
     groupName,
-    batchSize: logStreamMessages.length
+    batchSize: messages.length
   });
 
   const pgClient = await pgPool.connect();
 
+  const parsedMessages = parseBufferedLogStream(logger, messages);
+
   try {
-    const parsedMessageData = parseLogStreamMessages(logger, logStreamMessages);
+    const parsedMessageData = parseLogStreamMessages(logger, parsedMessages);
 
     await bulkInsertWebhookLogs(logger, pgClient, parsedMessageData);
   } catch (err: unknown) {
@@ -30,7 +37,7 @@ export async function handler(
     throw err;
   } finally {
     pgClient.release();
-    ackStreamMessages(logger, redisClient, streamKey, groupName, logStreamMessages);
-    logger.info(`Acknowledged ${logStreamMessages.length} log stream message(s)`);
+    ackStreamMessages(logger, redisClient, streamKey, groupName, parsedMessages);
+    logger.info(`Acknowledged ${parsedMessages.length} log stream message(s)`);
   }
 }

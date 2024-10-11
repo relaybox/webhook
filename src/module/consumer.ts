@@ -33,15 +33,9 @@ export async function startLogStreamConsumer(
     logger.debug(`Processing ${messages.length} log stream message(s)`);
 
     try {
-      const parsedMessages = parseBufferedLogStream(logger, messages);
+      // const parsedMessages = parseBufferedLogStream(logger, messages);
 
-      webhookLogStreamHandler(
-        pgPool,
-        redisClient,
-        LOG_STREAM_KEY,
-        LOG_STREAM_GROUP_NAME,
-        parsedMessages
-      );
+      webhookLogStreamHandler(pgPool, redisClient, LOG_STREAM_KEY, LOG_STREAM_GROUP_NAME, messages);
     } catch (err: unknown) {
       logger.error('Error processing log stream message data', { err });
     }
