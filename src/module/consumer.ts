@@ -11,8 +11,8 @@ const LOG_STREAM_DEFAULT_BUFFER_MAX_LENGTH = Number(
 );
 
 export const LOG_STREAM_KEY = 'logs:webhook';
-export const LOG_STREAM_GROUP_NAME = 'webhook-log-group';
-export const LOG_STREAM_CONSUMER_NAME = 'webhook-log-consumer';
+export const LOG_STREAM_GROUP_NAME = 'webhook:log-group';
+export const LOG_STREAM_CONSUMER_NAME = 'webhook:log-consumer';
 
 export async function startLogStreamConsumer(
   logger: Logger,

@@ -196,7 +196,7 @@ export default class StreamConsumer extends EventEmitter {
       return;
     }
 
-    this.logger.debug(`Flushing ${this.messageBuffer.length} buffered message(s)`);
+    this.logger.info(`Flushing ${this.messageBuffer.length} buffered message(s)`);
 
     try {
       this.emit('data', this.messageBuffer);
@@ -249,7 +249,10 @@ export default class StreamConsumer extends EventEmitter {
       this.isConsuming = false;
       this.flushMessageBuffer();
       clearTimeout(this.pollTimeout);
-      await this.redisClient.quit();
+
+      if (this.redisClient.isOpen) {
+        await this.redisClient.quit();
+      }
     } catch (err) {
       this.logger.error('Error disconnecting Redis client', { err });
       this.emit('error', err);

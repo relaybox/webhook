@@ -40,7 +40,7 @@ export function startWorker(
   });
 
   worker.on('drained', () => {
-    logger.info(`${worker.name} worker drained`);
+    logger.debug(`${worker.name} worker drained`);
   });
 
   worker.on('failed', (job: Job | undefined, err: Error, prev: string) => {

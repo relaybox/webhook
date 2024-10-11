@@ -13,7 +13,7 @@ export async function handler(
   groupName: string,
   logStreamMessages: LogStreamMessage[]
 ): Promise<void> {
-  logger.info(`Processing log stream data`, {
+  logger.info(`Handling webhook log stream data`, {
     streamKey,
     groupName,
     batchSize: logStreamMessages.length
@@ -31,5 +31,6 @@ export async function handler(
   } finally {
     pgClient.release();
     ackStreamMessages(logger, redisClient, streamKey, groupName, logStreamMessages);
+    logger.info(`Acknowledged ${logStreamMessages.length} log stream message(s)`);
   }
 }
