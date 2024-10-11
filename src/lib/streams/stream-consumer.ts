@@ -67,6 +67,8 @@ export default class StreamConsumer extends EventEmitter {
     this.bufferMaxLength = opts.bufferMaxLength || DEFAULT_BUFFER_MAX_LENGTH;
 
     this.logger = getLogger(`stream-consumer:${this.consumerName}`);
+
+    this.logger.info(`Stream consumer ready`);
   }
 
   async connect(): Promise<StreamConsumer> {

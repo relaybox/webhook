@@ -16,7 +16,7 @@ import webhookDispatchQueue, {
   WebhookDispatchJobName
 } from './queues/dispatch';
 import { RedisClient } from '@/lib/redis';
-import { StreamConsumerData, StreamConsumerMessage } from '@/lib/stream-consumer';
+import { StreamConsumerData, StreamConsumerMessage } from '@/lib/streams/stream-consumer';
 import { LOG_STREAM_KEY } from './consumer';
 
 const SIGNATURE_HASHING_ALGORITHM = 'sha256';

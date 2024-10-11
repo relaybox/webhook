@@ -7,7 +7,7 @@ import {
   parseStreamConsumerMessages,
   parseLogStreamMessages
 } from '@/module/service';
-import { StreamConsumerMessage } from '@/lib/stream-consumer';
+import { StreamConsumerMessage } from '@/lib/streams/stream-consumer';
 import { LogStreamMessage } from '@/module/types';
 
 const logger = getLogger('webhook-log-stream');

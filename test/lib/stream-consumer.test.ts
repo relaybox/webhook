@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { cleanupRedisClient, connectionOptions, getRedisClient, RedisClient } from '@/lib/redis';
-import StreamConsumer, { StreamConsumerMessage } from '@/lib/stream-consumer';
+import StreamConsumer, { StreamConsumerMessage } from '@/lib/streams/stream-consumer';
 
 vi.mock('@/util/logger.util', () => ({
   getLogger: vi.fn().mockReturnValue({

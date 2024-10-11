@@ -5,10 +5,11 @@ import { cleanupRedisClient, connectionOptions, getRedisClient } from '@/lib/red
 import { cleanupPgPool, getPgPool } from '@/lib/pg';
 import { startWorker } from './module/worker';
 import { ServiceWorker } from './module/types';
-import { startLogStreamConsumer } from './module/consumer';
-import StreamConsumer from './lib/stream-consumer';
+import { startLogStreamConsumer, startLogStreamMonitor } from './module/consumer';
+import StreamConsumer from './lib/streams/stream-consumer';
 import { WEBHOOK_DISPATCH_QUEUE_NAME } from './module/queues/dispatch';
 import { WEBHOOK_PROCESS_QUEUE_NAME } from './module/queues/process';
+import StreamMonitor from './lib/streams/stream-monitor';
 
 const logger = getLogger('webhook-service');
 const pgPool = getPgPool();
@@ -17,6 +18,7 @@ const redisClient = getRedisClient();
 let processWorker: ServiceWorker;
 let dispatchWorker: ServiceWorker;
 let logStreamConsumer: StreamConsumer;
+let logStreamMonitor: StreamMonitor;
 
 async function startService() {
   await initializeConnections();
@@ -24,6 +26,7 @@ async function startService() {
   processWorker = startWorker(logger, pgPool, redisClient, WEBHOOK_PROCESS_QUEUE_NAME, 10);
   dispatchWorker = startWorker(logger, pgPool, redisClient, WEBHOOK_DISPATCH_QUEUE_NAME);
   logStreamConsumer = await startLogStreamConsumer(logger, pgPool, redisClient, connectionOptions);
+  logStreamMonitor = await startLogStreamMonitor(logger, redisClient, connectionOptions);
 }
 
 async function initializeConnections(): Promise<void> {
