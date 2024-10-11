@@ -8,6 +8,8 @@ const DEFAULT_POLLING_TIMEOUT = 10000;
 const DEFAULT_MAX_LEN = 1000;
 const DEFAULT_TRIM_INTERVAL = 60000;
 const DEFAULT_MAX_BUFFER_LENGTH = 10;
+const DEFAULT_CONSUMER_BLOCKING_TIMEOUT_MS = 10000;
+const DEFAULT_CONSUMER_IDLE_TIMEOUT_MS = 10000;
 
 type RedisClient = RedisClientType<RedisModules, RedisFunctions, RedisScripts>;
 
@@ -29,9 +31,12 @@ export interface StreamConsumerOptions {
   groupName: string;
   consumerName?: string;
   blocking?: boolean;
+  blockingTimeoutMs?: number;
+  maxBlockingIterations?: number;
   pollingTimeoutMs?: number;
   streamMaxLen?: number;
   bufferMaxLength?: number;
+  consumerIdleTimeoutMs?: number;
 }
 
 export default class StreamConsumer extends EventEmitter {
@@ -42,12 +47,16 @@ export default class StreamConsumer extends EventEmitter {
   private logger: Logger;
   private isConsuming = true;
   private blocking: boolean = false;
+  private blockingTimeoutMs: number;
+  private maxBlockingIterations: number | null;
+  private currentBlockingIteration: number = 0;
   private pollingTimeoutMs: number;
   private pollTimeout: NodeJS.Timeout;
   private streamMaxLen: number;
   private trimInterval: NodeJS.Timeout;
   private messageBuffer: any = [];
   private bufferMaxLength: number;
+  private consumerIdleTimeoutMs: number;
 
   constructor(opts: StreamConsumerOptions) {
     super();
@@ -58,8 +67,11 @@ export default class StreamConsumer extends EventEmitter {
     this.consumerName = opts.consumerName || DEFAULT_CONSUMER_NAME;
     this.pollingTimeoutMs = opts.pollingTimeoutMs || DEFAULT_POLLING_TIMEOUT;
     this.blocking = opts.blocking || true;
+    this.blockingTimeoutMs = opts.blockingTimeoutMs || DEFAULT_CONSUMER_BLOCKING_TIMEOUT_MS;
+    this.maxBlockingIterations = opts.maxBlockingIterations || null;
     this.streamMaxLen = opts.streamMaxLen || DEFAULT_MAX_LEN;
     this.bufferMaxLength = opts.bufferMaxLength || DEFAULT_MAX_BUFFER_LENGTH;
+    this.consumerIdleTimeoutMs = opts.consumerIdleTimeoutMs || DEFAULT_CONSUMER_IDLE_TIMEOUT_MS;
     this.trimInterval = setInterval(() => this.trimStream(), DEFAULT_TRIM_INTERVAL);
 
     this.logger = getLogger(`stream-consumer:${this.consumerName}`);
@@ -133,11 +145,21 @@ export default class StreamConsumer extends EventEmitter {
     ];
 
     const options = {
-      BLOCK: 10000,
+      BLOCK: this.blockingTimeoutMs,
       COUNT: 10
     };
 
     while (this.isConsuming) {
+      if (
+        this.maxBlockingIterations &&
+        this.currentBlockingIteration >= this.maxBlockingIterations
+      ) {
+        this.logger.debug(`Blocking iterations reached, exiting`);
+        break;
+      }
+
+      this.currentBlockingIteration++;
+
       try {
         const data = await this.redisClient.xReadGroup(
           this.groupName,
@@ -160,7 +182,7 @@ export default class StreamConsumer extends EventEmitter {
   }
 
   private pushToMessageBuffer(messages: (StreamConsumerMessage | null)[]): void {
-    this.logger.debug(`Buffering stream data`);
+    this.logger.debug(`Buffering ${messages.length} messages from stream consumer`);
 
     try {
       this.messageBuffer = this.messageBuffer.concat(messages);
@@ -169,7 +191,7 @@ export default class StreamConsumer extends EventEmitter {
         this.flushMessageBuffer();
       }
     } catch (err: unknown) {
-      this.logger.error('Stream message buffering failed');
+      this.logger.error('Push to message buffer failed', { err });
     }
   }
 
@@ -185,7 +207,7 @@ export default class StreamConsumer extends EventEmitter {
       this.emit('data', this.messageBuffer);
       this.messageBuffer = [];
     } catch (err: unknown) {
-      this.logger.error('Stream message buffering failed');
+      this.logger.error('Flush message buffer failed', { err });
     }
   }
 
@@ -268,7 +290,7 @@ export default class StreamConsumer extends EventEmitter {
         this.streamKey,
         this.groupName,
         this.consumerName,
-        10000,
+        this.consumerIdleTimeoutMs,
         firstId,
         {
           COUNT: pending
@@ -283,6 +305,10 @@ export default class StreamConsumer extends EventEmitter {
     } catch (err) {
       this.logger.error('Error claiming pending messages:', err);
     }
+  }
+
+  public unblockOnData(): void {
+    this.isConsuming = false;
   }
 
   public async disconnect(): Promise<void> {

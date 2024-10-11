@@ -1,5 +1,5 @@
 import { RedisClient } from '@/lib/redis';
-import StreamConsumer from '@/lib/stream-consumer';
+import StreamConsumer, { StreamConsumerMessage } from '@/lib/stream-consumer';
 import { Pool } from 'pg';
 import { Logger } from 'winston';
 import { handler as webhookLogStreamHandler } from '@/handlers/webhook-log-stream';
@@ -29,13 +29,13 @@ export async function startLogStreamConsumer(
     bufferMaxLength: LOG_STREAM_DEFAULT_MAX_BUFFER_LENGTH
   });
 
-  streamConsumer.on('data', (data: any) => {
-    logger.debug(`Processing ${data.length} log stream message(s)`);
+  streamConsumer.on('data', (messages: StreamConsumerMessage[]) => {
+    logger.debug(`Processing ${messages.length} log stream message(s)`);
 
     try {
       // const messages = parseRawLogStream(logger, data, streamKey);
-      const messages = parseBufferedLogStream(logger, data);
-      webhookLogStreamHandler(pgPool, redisClient, streamKey, groupName, messages);
+      const parsedMessages = parseBufferedLogStream(logger, messages);
+      webhookLogStreamHandler(pgPool, redisClient, streamKey, groupName, parsedMessages);
     } catch (err: unknown) {
       logger.error('Error processing log stream message data', { err });
     }
