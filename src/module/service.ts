@@ -194,7 +194,7 @@ export function parseBufferedLogStream(
   logger: Logger,
   messages: StreamConsumerMessage[]
 ): LogStreamMessage[] {
-  logger.debug(`Parsing buffered ${messages.length} log stream message(s)`);
+  logger.debug(`Parsing ${messages.length} buffered log stream message(s)`);
 
   return messages.map((streamMessageData: StreamConsumerMessage) => ({
     streamId: streamMessageData.id,

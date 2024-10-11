@@ -22,7 +22,6 @@ export async function startLogStreamConsumer(
     redisClient,
     streamKey,
     groupName,
-    blocking: true,
     bufferMaxLength: LOG_STREAM_DEFAULT_BUFFER_MAX_LENGTH
   });
 

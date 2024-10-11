@@ -8,7 +8,7 @@ import {
   parseLogStreamMessages
 } from '@/module/service';
 
-const logger = getLogger('webhook-logger');
+const logger = getLogger('webhook-log-stream');
 
 export async function handler(
   pgPool: Pool,

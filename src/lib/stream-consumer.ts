@@ -4,7 +4,6 @@ import { RedisClientType, RedisFunctions, RedisModules, RedisScripts } from 'red
 import { getLogger } from '@/util/logger.util';
 
 const DEFAULT_CONSUMER_NAME = `consumer-${process.pid}`;
-const DEFAULT_POLLING_TIMEOUT = 10000;
 const DEFAULT_BUFFER_MAX_LENGTH = 10;
 const DEFAULT_CONSUMER_BLOCKING_TIMEOUT_MS = 10000;
 
@@ -27,7 +26,6 @@ export interface StreamConsumerOptions {
   streamKey: string;
   groupName: string;
   consumerName?: string;
-  blocking?: boolean;
   blockingTimeoutMs?: number;
   maxBlockingIterations?: number;
   pollingTimeoutMs?: number;
@@ -40,15 +38,14 @@ export default class StreamConsumer extends EventEmitter {
   private groupName: string;
   private consumerName: string;
   private logger: Logger;
-  private blocking: boolean = false;
   private blockingTimeoutMs: number;
   private maxBlockingIterations: number | null;
   private currentBlockingIteration: number = 0;
-  private pollingTimeoutMs: number;
+  private pollingTimeoutMs: number | null;
   private pollTimeout: NodeJS.Timeout;
-  private trimInterval: NodeJS.Timeout;
   private messageBuffer: any = [];
   private bufferMaxLength: number;
+  private isConsuming = true;
 
   constructor(opts: StreamConsumerOptions) {
     super();
@@ -57,8 +54,7 @@ export default class StreamConsumer extends EventEmitter {
     this.streamKey = opts.streamKey;
     this.groupName = opts.groupName;
     this.consumerName = opts.consumerName || DEFAULT_CONSUMER_NAME;
-    this.pollingTimeoutMs = opts.pollingTimeoutMs || DEFAULT_POLLING_TIMEOUT;
-    this.blocking = opts.blocking || true;
+    this.pollingTimeoutMs = opts.pollingTimeoutMs || null;
     this.blockingTimeoutMs = opts.blockingTimeoutMs || DEFAULT_CONSUMER_BLOCKING_TIMEOUT_MS;
     this.maxBlockingIterations = opts.maxBlockingIterations || null;
     this.bufferMaxLength = opts.bufferMaxLength || DEFAULT_BUFFER_MAX_LENGTH;
@@ -67,7 +63,7 @@ export default class StreamConsumer extends EventEmitter {
   }
 
   async connect(): Promise<StreamConsumer> {
-    this.logger.info(`Creating stream consumer`);
+    this.logger.info(`Connecting stream consumer client`);
 
     const logData = {
       streamKey: this.streamKey,
@@ -75,29 +71,29 @@ export default class StreamConsumer extends EventEmitter {
     };
 
     this.redisClient.on('connect', () => {
-      this.logger.info(`Redis stream consumer client connected`, logData);
+      this.logger.info(`Stream consumer client connected`, logData);
     });
 
     this.redisClient.on('error', (err) => {
-      this.logger.error(`Redis stream consumer client connection error`, { ...logData, err });
+      this.logger.error(`Stream consumer client error`, { ...logData, err });
     });
 
     this.redisClient.on('ready', () => {
-      this.logger.info(`Redis stream consumer client is ready`, logData);
+      this.logger.info(`Stream consumer client ready`, logData);
     });
 
     this.redisClient.on('end', () => {
-      this.logger.info(`Redis stream consumer client disconnected`, logData);
+      this.logger.info(`Stream consumer client disconnected`, logData);
     });
 
     await this.redisClient.connect();
 
     await this.createConsumerGroup();
 
-    if (this.blocking) {
-      this.startBlockingConsumer();
-    } else {
+    if (this.pollingTimeoutMs) {
       this.readStream();
+    } else {
+      this.startBlockingConsumer();
     }
 
     this.logger.info(`Stream consumer is ready`);
@@ -137,7 +133,7 @@ export default class StreamConsumer extends EventEmitter {
       COUNT: 10
     };
 
-    while (true) {
+    while (this.isConsuming) {
       if (
         this.maxBlockingIterations &&
         this.currentBlockingIteration >= this.maxBlockingIterations
@@ -227,35 +223,26 @@ export default class StreamConsumer extends EventEmitter {
       );
 
       if (data) {
-        this.emit('data', data);
+        const messages = data.flatMap((stream: StreamConsumerData) => stream.messages);
+        this.emit('data', messages);
       }
     } catch (err: unknown) {
       this.logger.error('Error consuming messages from stream:', err);
     }
 
-    this.pollTimeout = setTimeout(() => this.readStream(), this.pollingTimeoutMs);
+    if (this.pollingTimeoutMs) {
+      this.pollTimeout = setTimeout(() => this.readStream(), this.pollingTimeoutMs);
+    }
   }
-
-  // private trimStream(): void {
-  //   this.logger.debug(`Trimming stream`);
-
-  //   try {
-  //     this.redisClient.xTrim(this.streamKey, 'MAXLEN', this.streamMaxLen, {
-  //       strategyModifier: '~'
-  //     });
-  //   } catch (err: unknown) {
-  //     this.logger.error('Error trimming stream:', err);
-  //   }
-  // }
 
   public async disconnect(): Promise<void> {
     this.logger.info('Closing stream consumer');
 
     try {
+      this.isConsuming = false;
       this.flushMessageBuffer();
       await this.redisClient.quit();
       clearTimeout(this.pollTimeout);
-      clearInterval(this.trimInterval);
     } catch (err) {
       this.logger.error('Error disconnecting Redis client', { err });
       this.emit('error', err);
