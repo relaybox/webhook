@@ -3,7 +3,7 @@ import 'dotenv/config';
 import { getLogger } from '@/util/logger.util';
 import { cleanupRedisClient, connectionOptions, getRedisClient } from '@/lib/redis';
 import { cleanupPgPool, getPgPool } from '@/lib/pg';
-import { startWorker, stopWorker } from './module/worker';
+import { startWorker } from './module/worker';
 import { ServiceWorker } from './module/types';
 import { startLogStreamConsumer } from './module/consumer';
 import StreamConsumer from './lib/stream-consumer';
@@ -53,13 +53,11 @@ async function shutdown(signal: string): Promise<void> {
 
   try {
     await Promise.all([
-      // stopWorker(logger, processWorker),
-      // stopWorker(logger, dispatchWorker),
       processWorker?.close(),
       dispatchWorker?.close(),
+      logStreamConsumer.disconnect(),
       cleanupRedisClient(),
-      cleanupPgPool(),
-      logStreamConsumer.disconnect()
+      cleanupPgPool()
     ]);
 
     clearTimeout(shutdownTimeout);

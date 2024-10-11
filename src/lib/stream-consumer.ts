@@ -100,7 +100,7 @@ export default class StreamConsumer extends EventEmitter {
     if (this.pollingTimeoutMs) {
       this.readStream();
     } else {
-      this.startBlockingConsumer();
+      this.startConsumer();
     }
 
     this.logger.info(`Stream consumer is ready`);
@@ -125,7 +125,7 @@ export default class StreamConsumer extends EventEmitter {
     }
   }
 
-  private async startBlockingConsumer(): Promise<void> {
+  private async startConsumer(): Promise<void> {
     this.logger.debug(`Starting consumer`);
 
     const streams = [
