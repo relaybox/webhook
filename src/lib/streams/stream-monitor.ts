@@ -9,6 +9,7 @@ export interface StreamMonitorOptions {
   streamKey: string;
   groupName: string;
   delayMs?: number;
+  consumerMaxIdleTimeMs?: number;
 }
 
 export default class StreamMonitor extends EventEmitter {
@@ -17,7 +18,8 @@ export default class StreamMonitor extends EventEmitter {
   private streamKey: string;
   private groupName: string;
   private delayMs: number;
-  private delayTimeout: NodeJS.Timeout;
+  private delayTimeout: NodeJS.Timeout | null;
+  private consumerMaxIdleTimeMs: number;
 
   constructor(opts: StreamMonitorOptions) {
     super();
@@ -26,6 +28,7 @@ export default class StreamMonitor extends EventEmitter {
     this.streamKey = opts.streamKey;
     this.groupName = opts.groupName;
     this.delayMs = opts.delayMs || 5000;
+    this.consumerMaxIdleTimeMs = opts.consumerMaxIdleTimeMs ?? 10000;
 
     this.logger = getLogger(`stream-monitor`);
 
@@ -65,9 +68,15 @@ export default class StreamMonitor extends EventEmitter {
   private async startMonitor(): Promise<void> {
     this.logger.debug(`Starting monitor`);
 
-    const pendingMessages = await this.redisClient.xPending(this.streamKey, this.groupName);
+    const consumers = await this.redisClient.xInfoConsumers(this.streamKey, this.groupName);
+    console.log(consumers);
 
-    console.log(pendingMessages);
+    for (const consumer of consumers) {
+      if (consumer.idle > this.consumerMaxIdleTimeMs) {
+        console.log(`Consumer ${consumer.name} idle for ${consumer.idle}ms`);
+        // const claimedMessages = await this.redisClient.xClaim()
+      }
+    }
 
     this.delayTimeout = setTimeout(() => this.startMonitor(), this.delayMs);
   }
@@ -76,7 +85,10 @@ export default class StreamMonitor extends EventEmitter {
     this.logger.info('Closing stream monitor');
 
     try {
-      clearTimeout(this.delayTimeout);
+      if (this.delayTimeout) {
+        clearTimeout(this.delayTimeout);
+        this.delayTimeout = null;
+      }
 
       if (this.redisClient.isOpen) {
         await this.redisClient.quit();

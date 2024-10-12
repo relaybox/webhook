@@ -3,14 +3,14 @@ import { cleanupRedisClient, connectionOptions, getRedisClient, RedisClient } fr
 import StreamMonitor from '@/lib/streams/stream-monitor';
 import StreamConsumer from '@/lib/streams/stream-consumer';
 
-// vi.mock('@/util/logger.util', () => ({
-//   getLogger: vi.fn().mockReturnValue({
-//     debug: vi.fn(),
-//     info: vi.fn(),
-//     warn: vi.fn(),
-//     error: vi.fn()
-//   })
-// }));
+vi.mock('@/util/logger.util', () => ({
+  getLogger: vi.fn().mockReturnValue({
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn()
+  })
+}));
 
 const LOG_STREAM_KEY = 'test:logs:webhook';
 const LOG_STREAM_GROUP_NAME = 'test:webhook-log-group';
@@ -20,16 +20,14 @@ const defaultStreamMonitorOptions = {
   groupName: LOG_STREAM_GROUP_NAME
 };
 
-function addMessages(
+function addMessagesToStream(
   count: number,
   redisClient: RedisClient,
   streamKey: string,
   message: any
 ): Promise<string[]> {
   return Promise.all(
-    Array.from({ length: count }, (_, i) =>
-      redisClient.xAdd(streamKey, '*', { data: JSON.stringify(message) })
-    )
+    Array.from({ length: count }, (_, i) => redisClient.xAdd(streamKey, '*', message))
   );
 }
 
@@ -39,6 +37,7 @@ describe('StreamMonitor', () => {
   let streamMonitor: StreamMonitor;
 
   beforeAll(async () => {
+    // vi.useRealTimers();
     redisClient = getRedisClient();
     await redisClient.connect();
 
@@ -67,10 +66,15 @@ describe('StreamMonitor', () => {
     streamMonitor = new StreamMonitor({
       ...defaultStreamMonitorOptions,
       connectionOptions,
-      delayMs: 1000
+      delayMs: 1000,
+      consumerMaxIdleTimeMs: 100
     });
 
-    await addMessages(3, redisClient, LOG_STREAM_KEY, { test: true });
+    await addMessagesToStream(3, redisClient, LOG_STREAM_KEY, {
+      data: JSON.stringify({ test: true })
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
     await streamMonitor.connect();
 

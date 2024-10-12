@@ -139,7 +139,7 @@ export default class StreamConsumer extends EventEmitter {
 
     const options = {
       BLOCK: this.blockingTimeoutMs,
-      COUNT: 10
+      COUNT: this.bufferMaxLength
     };
 
     while (this.isConsuming) {

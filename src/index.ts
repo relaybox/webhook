@@ -26,7 +26,7 @@ async function startService() {
   processWorker = startWorker(logger, pgPool, redisClient, WEBHOOK_PROCESS_QUEUE_NAME, 10);
   dispatchWorker = startWorker(logger, pgPool, redisClient, WEBHOOK_DISPATCH_QUEUE_NAME);
   logStreamConsumer = await startLogStreamConsumer(logger, pgPool, redisClient, connectionOptions);
-  logStreamMonitor = await startLogStreamMonitor(logger, redisClient, connectionOptions);
+  // logStreamMonitor = await startLogStreamMonitor(logger, redisClient, connectionOptions);
 }
 
 async function initializeConnections(): Promise<void> {
@@ -59,6 +59,7 @@ async function shutdown(signal: string): Promise<void> {
       processWorker?.close(),
       dispatchWorker?.close(),
       logStreamConsumer.disconnect(),
+      logStreamMonitor.disconnect(),
       cleanupRedisClient(),
       cleanupPgPool()
     ]);

@@ -7,6 +7,7 @@ import * as repository from './repository';
 import {
   LogStreamMessage,
   RegisteredWebhook,
+  webhookDbEntry,
   WebhookEvent,
   WebhookPayload,
   WebhookResponse
@@ -196,37 +197,53 @@ export function parseStreamConsumerMessages(
 ): LogStreamMessage[] {
   logger.debug(`Parsing ${messages.length} buffered log stream message(s)`);
 
-  return messages.map((streamMessageData: StreamConsumerMessage) => ({
-    streamId: streamMessageData.id,
-    ...JSON.parse(streamMessageData.message.data)
-  }));
+  return messages.reduce<LogStreamMessage[]>((acc, msg) => {
+    try {
+      const parsedData = JSON.parse(msg.message.data);
+
+      acc.push({
+        streamId: msg.id,
+        ...parsedData
+      });
+    } catch (err: unknown) {
+      logger.error(`Failed to parse stream consumer message`, { err });
+    }
+
+    return acc;
+  }, []);
 }
 
 export function parseLogStreamMessages(
   logger: Logger,
   logStreamMessages: LogStreamMessage[]
-): (string | number)[][] {
+): webhookDbEntry[] {
   logger.debug(`Parsing ${logStreamMessages.length} log stream message(s)`);
 
-  return logStreamMessages.map((messageData) => {
-    const { webhook, webhookResponse } = messageData;
+  return logStreamMessages.reduce<webhookDbEntry[]>((acc, messageData) => {
+    try {
+      const { webhook, webhookResponse } = messageData;
 
-    return [
-      webhook.appId,
-      webhook.appPid,
-      webhook.id,
-      webhookResponse.id,
-      webhookResponse.status,
-      webhookResponse.statusText,
-      new Date(webhookResponse.timestamp).toISOString()
-    ];
-  });
+      acc.push([
+        webhook.appId,
+        webhook.appPid,
+        webhook.id,
+        webhookResponse.id,
+        webhookResponse.status,
+        webhookResponse.statusText,
+        new Date(webhookResponse.timestamp).toISOString()
+      ]);
+    } catch (err: unknown) {
+      logger.error(`Failed to parse log stream message`, { err });
+    }
+
+    return acc;
+  }, []);
 }
 
 export async function bulkInsertWebhookLogs(
   logger: Logger,
   pgClient: PoolClient,
-  parsedLogStreamMessages: (string | number)[][]
+  parsedLogStreamMessages: webhookDbEntry[]
 ): Promise<void> {
   logger.debug(`Bulk inserting ${parsedLogStreamMessages.length} webhook log(s)`);
 
