@@ -5,12 +5,15 @@ import { createClient, RedisClientOptions } from 'redis';
 import { StreamConsumerMessage } from './stream-consumer';
 import { RedisClient } from './types';
 
+const MAX_CLAIMED_MESSAGES_PER_CONSUMER = 100;
+
 export interface StreamMonitorOptions {
   connectionOptions: RedisClientOptions;
   streamKey: string;
   groupName: string;
   consumerMaxIdleTimeMs?: number;
   delayMs?: number;
+  streamMaxLength?: number;
 }
 
 export interface StreamMonitorData {
@@ -26,6 +29,7 @@ export default class StreamMonitor extends EventEmitter {
   private delayMs: number;
   private delayTimeout: NodeJS.Timeout | null;
   private consumerMaxIdleTimeMs: number;
+  private streamMaxLength: number;
 
   constructor(opts: StreamMonitorOptions) {
     super();
@@ -35,6 +39,7 @@ export default class StreamMonitor extends EventEmitter {
     this.groupName = opts.groupName;
     this.delayMs = opts.delayMs || 5000;
     this.consumerMaxIdleTimeMs = opts.consumerMaxIdleTimeMs ?? 10000;
+    this.streamMaxLength = opts.streamMaxLength ?? 1000;
 
     this.logger = getLogger(`stream-monitor`);
 
@@ -77,6 +82,7 @@ export default class StreamMonitor extends EventEmitter {
     try {
       await this.handlePendingMessages();
       await this.handleHangingConsumers();
+      await this.trimStream();
     } catch (err: unknown) {
       this.logger.error(`Error monitoring stream`, { err });
     }
@@ -101,7 +107,7 @@ export default class StreamMonitor extends EventEmitter {
       const claimedMessages = await this.claimPendingMessages(consumer.name, firstId);
 
       if (claimedMessages?.length) {
-        this.logger.debug(
+        this.logger.info(
           `Claimed ${claimedMessages.length} pending messages from ${consumer.name}`,
           { consumer }
         );
@@ -109,6 +115,8 @@ export default class StreamMonitor extends EventEmitter {
         await this.acknowledgeClaimedMessages(claimedMessages);
 
         this.emit('data', claimedMessages);
+      } else {
+        this.logger.debug(`No idle pending messages found from ${consumer.name}`, { consumer });
       }
     }
   }
@@ -118,13 +126,18 @@ export default class StreamMonitor extends EventEmitter {
 
     const consumers = await this.redisClient.xInfoConsumers(this.streamKey, this.groupName);
 
+    if (!consumers?.length) {
+      this.logger.debug(`No consumers found`);
+      return;
+    }
+
     for (const consumer of consumers) {
-      if (consumer.idle > this.consumerMaxIdleTimeMs) {
+      if (consumer.idle > this.consumerMaxIdleTimeMs && !consumer.pending) {
         this.logger.info(`Consumer ${consumer.name} idle for ${consumer.idle}ms`, {
           consumer
         });
 
-        await this.cleanConsumer(consumer.name);
+        await this.deleteConsumer(consumer.name);
       }
     }
   }
@@ -140,7 +153,10 @@ export default class StreamMonitor extends EventEmitter {
       this.groupName,
       consumerName,
       this.consumerMaxIdleTimeMs,
-      firstId ?? '0'
+      firstId ?? '0',
+      {
+        COUNT: MAX_CLAIMED_MESSAGES_PER_CONSUMER
+      }
     );
 
     return data.messages || [];
@@ -157,19 +173,31 @@ export default class StreamMonitor extends EventEmitter {
       return acc;
     }, []);
 
-    this.logger.debug(`ack'ing ${ids.length} claimed message(s)`, { ids });
+    this.logger.info(`ack'ing ${ids.length} claimed message(s)`, { ids });
 
     return this.redisClient.xAck(this.streamKey, this.groupName, ids);
   }
 
-  private async cleanConsumer(consumerName: string): Promise<void> {
-    this.logger.debug(`Cleaning consumer ${consumerName}`);
+  private async deleteConsumer(consumerName: string): Promise<void> {
+    this.logger.info(`Deleteing consumer ${consumerName}`);
 
     try {
       await this.redisClient.xGroupDelConsumer(this.streamKey, this.groupName, consumerName);
     } catch (err: unknown) {
-      this.logger.error(`Error cleaning consumer`, { err, consumerName });
+      this.logger.error(`Error Deleteing consumer`, { err, consumerName });
       throw err;
+    }
+  }
+
+  private async trimStream(): Promise<void> {
+    this.logger.debug(`Trimming stream`);
+
+    try {
+      await this.redisClient.xTrim(this.streamKey, 'MAXLEN', this.streamMaxLength, {
+        strategyModifier: '~'
+      });
+    } catch (err: unknown) {
+      this.logger.error('Error trimming stream', { err });
     }
   }
 

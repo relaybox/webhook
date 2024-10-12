@@ -1,6 +1,5 @@
 import { PoolClient, QueryResult } from 'pg';
-import { LogStreamMessage, RegisteredWebhook, WebhookEvent, WebhookResponse } from './types';
-import { StreamConsumerMessage } from '@/lib/streams/stream-consumer';
+import { RegisteredWebhook, WebhookEvent, WebhookResponse } from './types';
 
 export function getWebhooksByAppAndEvent(
   pgClient: PoolClient,

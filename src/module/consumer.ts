@@ -7,9 +7,8 @@ import { RedisClientOptions } from 'redis';
 import StreamMonitor from '@/lib/streams/stream-monitor';
 import webhookPersistQueue, { defaultJobConfig, WebhookPersistJobName } from './queues/persist';
 
-const LOG_STREAM_DEFAULT_BUFFER_MAX_LENGTH = Number(
-  process.env.LOG_STREAM_DEFAULT_BUFFER_MAX_LENGTH
-);
+const LOG_STREAM_BUFFER_MAX_LENGTH = Number(process.env.LOG_STREAM_BUFFER_MAX_LENGTH);
+const LOG_STREAM_MAX_LEN = Number(process.env.LOG_STREAM_MAX_LEN);
 
 export const LOG_STREAM_KEY = 'logs:webhook';
 export const LOG_STREAM_GROUP_NAME = 'webhook:log-group';
@@ -27,7 +26,7 @@ export async function startLogStreamConsumer(
     connectionOptions,
     streamKey: LOG_STREAM_KEY,
     groupName: LOG_STREAM_GROUP_NAME,
-    bufferMaxLength: LOG_STREAM_DEFAULT_BUFFER_MAX_LENGTH
+    bufferMaxLength: LOG_STREAM_BUFFER_MAX_LENGTH
   });
 
   streamConsumer.on('data', async (messages: StreamConsumerMessage[]) => {
@@ -60,7 +59,8 @@ export async function startLogStreamMonitor(
     connectionOptions,
     streamKey: LOG_STREAM_KEY,
     groupName: LOG_STREAM_GROUP_NAME,
-    consumerMaxIdleTimeMs: 30000
+    consumerMaxIdleTimeMs: 30000,
+    streamMaxLength: LOG_STREAM_MAX_LEN
   });
 
   streamMonitor.on('data', async (messages: StreamConsumerMessage[]) => {
