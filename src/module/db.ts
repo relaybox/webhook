@@ -9,8 +9,10 @@ export function getWebhooksByAppAndEvent(
   const query = `
     SELECT aw."appId", aw."appPid", aw.id, aw.url, aw."signingKey" 
     FROM webhook_events we
-    INNER JOIN application_webhooks aw
-    ON we.id = aw."webhookEventId" AND aw."appPid" = $1 AND aw.enabled IS TRUE
+    INNER JOIN application_webhook_events awe
+    ON we.id = awe."webhookEventId" AND awe."appPid" = $1 
+    INNER JOIN application_webhooks aw 
+    ON awe."webhookId" = aw.id AND aw.enabled IS TRUE
     WHERE we.type = $2;
   `;
 
