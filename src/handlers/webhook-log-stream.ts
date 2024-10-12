@@ -5,7 +5,7 @@ import {
   ackStreamMessages,
   bulkInsertWebhookLogs,
   parseStreamConsumerMessages,
-  parseLogStreamDbEntries
+  parseWebhookLogsDbEntries
 } from '@/module/service';
 import { StreamConsumerMessage } from '@/lib/streams/stream-consumer';
 
@@ -32,7 +32,10 @@ export async function handler(
       streamConsumerMessages
     );
 
-    const parsedLogStreamDbEntries = parseLogStreamDbEntries(logger, parsedStreamConsumerMessages);
+    const parsedLogStreamDbEntries = parseWebhookLogsDbEntries(
+      logger,
+      parsedStreamConsumerMessages
+    );
 
     await bulkInsertWebhookLogs(logger, pgClient, parsedLogStreamDbEntries);
 

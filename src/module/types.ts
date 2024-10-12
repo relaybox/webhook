@@ -32,7 +32,7 @@ export interface WebhookResponse {
   timestamp: number;
 }
 
-export type webhookDbEntry = (string | number)[];
+export type webhookLogsDbEntry = (string | number)[];
 
 export interface AuthUser {
   id: string;

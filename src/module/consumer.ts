@@ -5,6 +5,7 @@ import { Logger } from 'winston';
 import { handler as webhookLogStreamHandler } from '@/handlers/webhook-log-stream';
 import { RedisClientOptions } from 'redis';
 import StreamMonitor from '@/lib/streams/stream-monitor';
+import webhookPersistQueue, { defaultJobConfig, WebhookPersistJobName } from './queues/persist';
 
 const LOG_STREAM_DEFAULT_BUFFER_MAX_LENGTH = Number(
   process.env.LOG_STREAM_DEFAULT_BUFFER_MAX_LENGTH
@@ -30,7 +31,7 @@ export async function startLogStreamConsumer(
   });
 
   streamConsumer.on('data', async (messages: StreamConsumerMessage[]) => {
-    logger.debug(`Processing ${messages.length} log stream message(s)`);
+    logger.debug(`Processing ${messages.length} log stream message(s) from consumer`);
 
     try {
       await webhookLogStreamHandler(
@@ -59,6 +60,24 @@ export async function startLogStreamMonitor(
     connectionOptions,
     streamKey: LOG_STREAM_KEY,
     groupName: LOG_STREAM_GROUP_NAME
+  });
+
+  streamMonitor.on('data', async (messages: StreamConsumerMessage[]) => {
+    logger.debug(`Processing ${messages.length} log stream message(s) from monitor`);
+
+    try {
+      const jobs = messages.map((message) => {
+        return {
+          name: WebhookPersistJobName.WEBHOOK_PERSIST,
+          data: message,
+          opts: defaultJobConfig
+        };
+      });
+
+      webhookPersistQueue.addBulk(jobs);
+    } catch (err: unknown) {
+      logger.error(`Failed to add webhook log stream data`, { err });
+    }
   });
 
   return streamMonitor.connect();

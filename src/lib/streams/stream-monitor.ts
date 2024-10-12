@@ -3,6 +3,7 @@ import { getLogger } from '@/util/logger.util';
 import { Logger } from 'winston';
 import { RedisClient } from '../redis';
 import { createClient, RedisClientOptions } from 'redis';
+import { StreamConsumerMessage } from './stream-consumer';
 
 export interface StreamMonitorOptions {
   connectionOptions: RedisClientOptions;
@@ -10,6 +11,11 @@ export interface StreamMonitorOptions {
   groupName: string;
   delayMs?: number;
   consumerMaxIdleTimeMs?: number;
+}
+
+export interface StreamMonitorData {
+  nextId: string;
+  messages: StreamConsumerMessage[];
 }
 
 export default class StreamMonitor extends EventEmitter {
@@ -69,13 +75,12 @@ export default class StreamMonitor extends EventEmitter {
     this.logger.debug(`Starting monitor`);
 
     const consumers = await this.redisClient.xInfoConsumers(this.streamKey, this.groupName);
-    console.log(consumers);
 
     for (const consumer of consumers) {
       if (consumer.idle > this.consumerMaxIdleTimeMs) {
-        console.log(`Consumer ${consumer.name} idle for ${consumer.idle}ms`);
+        // console.log(`Consumer ${consumer.name} idle for ${consumer.idle}ms`);
 
-        const messages = await this.redisClient.xAutoClaim(
+        const data = await this.redisClient.xAutoClaim(
           this.streamKey,
           this.groupName,
           consumer.name,
@@ -83,11 +88,28 @@ export default class StreamMonitor extends EventEmitter {
           '0'
         );
 
-        console.log(messages);
+        if (data.messages?.length) {
+          this.emit('data', data.messages);
+          this.ackClaimedMessages(data.messages);
+        }
       }
     }
 
     this.delayTimeout = setTimeout(() => this.startMonitor(), this.delayMs);
+  }
+
+  private ackClaimedMessages(messages: (StreamConsumerMessage | null)[]): void {
+    const ids = messages.reduce<string[]>((acc, message) => {
+      if (message) {
+        acc.push(message.id);
+      }
+
+      return acc;
+    }, []);
+
+    console.log(`ack'ing ${ids.length} claimed message(s)`, ids);
+
+    // this.redisClient.xAck(this.streamKey, this.groupName, ids);
   }
 
   async disconnect(): Promise<void> {

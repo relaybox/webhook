@@ -1,5 +1,6 @@
 import { PoolClient, QueryResult } from 'pg';
-import { WebhookEvent } from './types';
+import { LogStreamMessage, RegisteredWebhook, WebhookEvent, WebhookResponse } from './types';
+import { StreamConsumerMessage } from '@/lib/streams/stream-consumer';
 
 export function getWebhooksByAppAndEvent(
   pgClient: PoolClient,
@@ -43,6 +44,29 @@ export function logWebhookEvent(
     status,
     statusText,
     now
+  ]);
+}
+
+export function insertWebhookLogsDbEntry(
+  pgClient: PoolClient,
+  webhook: RegisteredWebhook,
+  webhookResponse: WebhookResponse
+): Promise<QueryResult> {
+  const query = `
+    INSERT INTO application_webhook_logs (
+      "appId", "appPid", "webhookId", "webhookRequestId", status, "statusText", "createdAt"
+    )
+    VALUES ($1, $2, $3, $4, $5, $6, $7);
+  `;
+
+  return pgClient.query(query, [
+    webhook.appId,
+    webhook.appPid,
+    webhook.id,
+    webhookResponse.id,
+    webhookResponse.status,
+    webhookResponse.statusText,
+    new Date(webhookResponse.timestamp).toISOString()
   ]);
 }
 

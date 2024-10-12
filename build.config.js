@@ -13,7 +13,7 @@ esbuild
     external: [...Object.keys(pkg.dependencies || {})],
     plugins: [],
     minify: true,
-    sourcemap: false
+    sourcemap: true
   })
   .then(() => {
     const srcCertsDir = path.resolve(__dirname, 'src', 'certs');

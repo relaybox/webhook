@@ -5,7 +5,7 @@ export const WEBHOOK_PERSIST_QUEUE_NAME = 'webhook-persist';
 
 const WEBHOOK_PERSIST_QUEUE_PREFIX = 'queue';
 const RETRY_BACKOFF_RATE_MS = 500;
-const RETRY_MAX_ATTEMPTS = 5;
+const RETRY_MAX_ATTEMPTS = 1;
 const RETRY_BACKOFF_TYPE = 'exponential';
 
 const defaultQueueConfig = {
@@ -27,7 +27,7 @@ export const defaultJobConfig: JobsOptions = {
     delay: RETRY_BACKOFF_RATE_MS
   },
   removeOnComplete: true,
-  removeOnFail: true
+  removeOnFail: false
 };
 
 const webhookPersistQueue = new Queue(WEBHOOK_PERSIST_QUEUE_NAME, {

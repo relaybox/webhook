@@ -10,6 +10,7 @@ import StreamConsumer from './lib/streams/stream-consumer';
 import { WEBHOOK_DISPATCH_QUEUE_NAME } from './module/queues/dispatch';
 import { WEBHOOK_PROCESS_QUEUE_NAME } from './module/queues/process';
 import StreamMonitor from './lib/streams/stream-monitor';
+import { WEBHOOK_PERSIST_QUEUE_NAME } from './module/queues/persist';
 
 const logger = getLogger('webhook-service');
 const pgPool = getPgPool();
@@ -17,6 +18,7 @@ const redisClient = getRedisClient();
 
 let processWorker: ServiceWorker;
 let dispatchWorker: ServiceWorker;
+let persistWorker: ServiceWorker;
 let logStreamConsumer: StreamConsumer;
 let logStreamMonitor: StreamMonitor;
 
@@ -25,8 +27,9 @@ async function startService() {
 
   processWorker = startWorker(logger, pgPool, redisClient, WEBHOOK_PROCESS_QUEUE_NAME, 10);
   dispatchWorker = startWorker(logger, pgPool, redisClient, WEBHOOK_DISPATCH_QUEUE_NAME);
+  persistWorker = startWorker(logger, pgPool, redisClient, WEBHOOK_PERSIST_QUEUE_NAME);
   logStreamConsumer = await startLogStreamConsumer(logger, pgPool, redisClient, connectionOptions);
-  // logStreamMonitor = await startLogStreamMonitor(logger, redisClient, connectionOptions);
+  logStreamMonitor = await startLogStreamMonitor(logger, redisClient, connectionOptions);
 }
 
 async function initializeConnections(): Promise<void> {
@@ -58,6 +61,7 @@ async function shutdown(signal: string): Promise<void> {
     await Promise.all([
       processWorker?.close(),
       dispatchWorker?.close(),
+      persistWorker?.close(),
       logStreamConsumer.disconnect(),
       logStreamMonitor.disconnect(),
       cleanupRedisClient(),
