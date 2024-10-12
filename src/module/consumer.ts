@@ -2,7 +2,7 @@ import { RedisClient } from '@/lib/redis';
 import StreamConsumer, { StreamConsumerMessage } from '@/lib/streams/stream-consumer';
 import { Pool } from 'pg';
 import { Logger } from 'winston';
-import { handler as webhookLogStreamHandler } from '@/handlers/webhook-log-stream';
+import { handler as webhookLogStreamHandler } from '@/handlers/webhook-stream';
 import { RedisClientOptions } from 'redis';
 import StreamMonitor from '@/lib/streams/stream-monitor';
 import webhookPersistQueue, { defaultJobConfig, WebhookPersistJobName } from './queues/persist';
@@ -59,7 +59,8 @@ export async function startLogStreamMonitor(
   const streamMonitor = new StreamMonitor({
     connectionOptions,
     streamKey: LOG_STREAM_KEY,
-    groupName: LOG_STREAM_GROUP_NAME
+    groupName: LOG_STREAM_GROUP_NAME,
+    consumerMaxIdleTimeMs: 30000
   });
 
   streamMonitor.on('data', async (messages: StreamConsumerMessage[]) => {

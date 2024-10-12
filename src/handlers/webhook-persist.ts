@@ -18,8 +18,6 @@ export async function handler(
   try {
     const parsedStreamConsumerMessage = parseStreamConsumerMessage(logger, streamConsumerMessage);
 
-    console.log(parsedStreamConsumerMessage);
-
     await insertWebhookLog(logger, pgClient, parsedStreamConsumerMessage);
   } catch (err: unknown) {
     logger.error(`Failed to perist webhook log stream data`, { err });

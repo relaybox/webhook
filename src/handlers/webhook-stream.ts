@@ -9,7 +9,7 @@ import {
 } from '@/module/service';
 import { StreamConsumerMessage } from '@/lib/streams/stream-consumer';
 
-const logger = getLogger('webhook-log-stream');
+const logger = getLogger('webhook-stream');
 
 export async function handler(
   pgPool: Pool,

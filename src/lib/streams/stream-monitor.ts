@@ -9,8 +9,8 @@ export interface StreamMonitorOptions {
   connectionOptions: RedisClientOptions;
   streamKey: string;
   groupName: string;
-  delayMs?: number;
   consumerMaxIdleTimeMs?: number;
+  delayMs?: number;
 }
 
 export interface StreamMonitorData {
@@ -74,31 +74,55 @@ export default class StreamMonitor extends EventEmitter {
   private async startMonitor(): Promise<void> {
     this.logger.debug(`Starting monitor`);
 
-    const consumers = await this.redisClient.xInfoConsumers(this.streamKey, this.groupName);
+    try {
+      const consumers = await this.redisClient.xInfoConsumers(this.streamKey, this.groupName);
 
-    for (const consumer of consumers) {
-      if (consumer.idle > this.consumerMaxIdleTimeMs) {
-        // console.log(`Consumer ${consumer.name} idle for ${consumer.idle}ms`);
+      for (const consumer of consumers) {
+        if (consumer.idle > this.consumerMaxIdleTimeMs) {
+          this.logger.info(`Consumer ${consumer.name} idle for ${consumer.idle}ms`, {
+            consumer
+          });
 
-        const data = await this.redisClient.xAutoClaim(
-          this.streamKey,
-          this.groupName,
-          consumer.name,
-          this.consumerMaxIdleTimeMs,
-          '0'
-        );
+          const claimedMessages = await this.claimPendingMessages(consumer.name);
 
-        if (data.messages?.length) {
-          this.emit('data', data.messages);
-          this.ackClaimedMessages(data.messages);
+          if (claimedMessages?.length) {
+            this.logger.debug(
+              `Claimed ${claimedMessages.length} pending messages from ${consumer.name}`,
+              { consumer }
+            );
+
+            await this.ackClaimedMessages(claimedMessages);
+
+            this.emit('data', claimedMessages);
+          }
+
+          await this.cleanConsumer(consumer.name);
         }
       }
+    } catch (err: unknown) {
+      this.logger.error(`Error monitoring stream`, { err });
     }
 
     this.delayTimeout = setTimeout(() => this.startMonitor(), this.delayMs);
   }
 
-  private ackClaimedMessages(messages: (StreamConsumerMessage | null)[]): void {
+  private async claimPendingMessages(
+    consumerName: string
+  ): Promise<(StreamConsumerMessage | null)[]> {
+    this.logger.debug(`Claiming pending messages from ${consumerName}`);
+
+    const data = await this.redisClient.xAutoClaim(
+      this.streamKey,
+      this.groupName,
+      consumerName,
+      this.consumerMaxIdleTimeMs,
+      '0'
+    );
+
+    return data.messages || [];
+  }
+
+  private async ackClaimedMessages(messages: (StreamConsumerMessage | null)[]): Promise<number> {
     const ids = messages.reduce<string[]>((acc, message) => {
       if (message) {
         acc.push(message.id);
@@ -107,9 +131,20 @@ export default class StreamMonitor extends EventEmitter {
       return acc;
     }, []);
 
-    console.log(`ack'ing ${ids.length} claimed message(s)`, ids);
+    this.logger.debug(`ack'ing ${ids.length} claimed message(s)`, { ids });
 
-    // this.redisClient.xAck(this.streamKey, this.groupName, ids);
+    return this.redisClient.xAck(this.streamKey, this.groupName, ids);
+  }
+
+  private async cleanConsumer(consumerName: string): Promise<void> {
+    this.logger.debug(`Cleaning consumer ${consumerName}`);
+
+    try {
+      await this.redisClient.xGroupDelConsumer(this.streamKey, this.groupName, consumerName);
+    } catch (err: unknown) {
+      this.logger.error(`Error cleaning consumer`, { err, consumerName });
+      throw err;
+    }
   }
 
   async disconnect(): Promise<void> {
