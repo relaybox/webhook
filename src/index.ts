@@ -55,7 +55,7 @@ async function shutdown(signal: string): Promise<void> {
   const shutdownTimeout = setTimeout(() => {
     logger.error('Graceful shutdown timed out, forcing exit');
     process.exit(1);
-  }, 10000);
+  }, 20000);
 
   try {
     await Promise.all([
