@@ -18,14 +18,12 @@ export async function handler(
 ): Promise<void> {
   const { webhook, payload } = jobData;
 
-  const pgClient = await pgPool.connect();
-
   let webhookResponse: WebhookResponse | null = null;
 
   logger.info(`Dispatching webhook`, { webhook });
 
   try {
-    webhookResponse = await dispatchWebhook(logger, pgClient, webhook, payload);
+    webhookResponse = await dispatchWebhook(logger, webhook, payload);
   } catch (err: unknown) {
     logger.error(`Failed to dispatch webhook event`, { err });
 
@@ -43,7 +41,5 @@ export async function handler(
     if (webhookResponse) {
       enqueueWebhookLog(logger, redisClient, webhook, webhookResponse);
     }
-
-    pgClient.release();
   }
 }

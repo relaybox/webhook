@@ -87,7 +87,6 @@ export async function enqueueRegisteredWebhooks(
 
 export async function dispatchWebhook(
   logger: Logger,
-  pgClient: PoolClient,
   webhook: RegisteredWebhook,
   payload: WebhookPayload
 ): Promise<WebhookResponse> {
@@ -213,16 +212,16 @@ export function parseStreamConsumerMessages(
   }, []);
 }
 
-export function parseLogStreamMessages(
+export function parseLogStreamDbEntries(
   logger: Logger,
   logStreamMessages: LogStreamMessage[]
 ): webhookDbEntry[] {
   logger.debug(`Parsing ${logStreamMessages.length} log stream message(s)`);
 
   return logStreamMessages.reduce<webhookDbEntry[]>((acc, messageData) => {
-    try {
-      const { webhook, webhookResponse } = messageData;
+    const { webhook, webhookResponse } = messageData;
 
+    try {
       acc.push([
         webhook.appId,
         webhook.appPid,
@@ -233,7 +232,7 @@ export function parseLogStreamMessages(
         new Date(webhookResponse.timestamp).toISOString()
       ]);
     } catch (err: unknown) {
-      logger.error(`Failed to parse log stream message`, { err });
+      logger.error(`Failed to parse log stream message`, { err, webhook, webhookResponse });
     }
 
     return acc;
@@ -280,6 +279,8 @@ export async function ackStreamMessages(
     logger.debug(`Acknowledging ${ids.length} stream message(s)`, { streamKey, groupName });
 
     await repository.ackStreamMessages(redisClient, streamKey, groupName, ids);
+
+    logger.info(`Acknowledged ${ids.length} log stream message(s)`);
   } catch (err) {
     logger.error('Error processing messages:', err);
   }

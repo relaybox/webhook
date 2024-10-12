@@ -5,10 +5,9 @@ import {
   ackStreamMessages,
   bulkInsertWebhookLogs,
   parseStreamConsumerMessages,
-  parseLogStreamMessages
+  parseLogStreamDbEntries
 } from '@/module/service';
 import { StreamConsumerMessage } from '@/lib/streams/stream-consumer';
-import { LogStreamMessage } from '@/module/types';
 
 const logger = getLogger('webhook-log-stream');
 
@@ -27,22 +26,27 @@ export async function handler(
 
   const pgClient = await pgPool.connect();
 
-  let parsedStreamConsumerMessages: LogStreamMessage[] | null = null;
-
   try {
-    parsedStreamConsumerMessages = parseStreamConsumerMessages(logger, streamConsumerMessages);
-    const parsedLogStreamMessages = parseLogStreamMessages(logger, parsedStreamConsumerMessages);
+    const parsedStreamConsumerMessages = parseStreamConsumerMessages(
+      logger,
+      streamConsumerMessages
+    );
 
-    await bulkInsertWebhookLogs(logger, pgClient, parsedLogStreamMessages);
+    const parsedLogStreamDbEntries = parseLogStreamDbEntries(logger, parsedStreamConsumerMessages);
+
+    await bulkInsertWebhookLogs(logger, pgClient, parsedLogStreamDbEntries);
+
+    await ackStreamMessages(
+      logger,
+      redisClient,
+      streamKey,
+      groupName,
+      parsedStreamConsumerMessages
+    );
   } catch (err: unknown) {
     logger.error(`Failed to perist webhook log stream data`, { err });
     throw err;
   } finally {
     pgClient.release();
-
-    if (parsedStreamConsumerMessages) {
-      ackStreamMessages(logger, redisClient, streamKey, groupName, parsedStreamConsumerMessages);
-      logger.info(`Acknowledged ${parsedStreamConsumerMessages.length} log stream message(s)`);
-    }
   }
 }

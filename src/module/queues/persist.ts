@@ -1,9 +1,9 @@
 import { JobsOptions, Queue } from 'bullmq';
 import { connectionOptionsIo } from '@/lib/redis';
 
-export const WEBHOOK_DISPATCH_QUEUE_NAME = 'webhook-dispatch';
+export const WEBHOOK_PERSIST_QUEUE_NAME = 'webhook-persist';
 
-const WEBHOOK_DISPATCH_QUEUE_PREFIX = 'queue';
+const WEBHOOK_PERSIST_QUEUE_PREFIX = 'queue';
 const RETRY_BACKOFF_RATE_MS = 500;
 const RETRY_MAX_ATTEMPTS = 5;
 const RETRY_BACKOFF_TYPE = 'exponential';
@@ -16,8 +16,8 @@ const defaultQueueConfig = {
   }
 };
 
-export enum WebhookDispatchJobName {
-  WEBHOOK_DISPATCH = 'webhook:dispatch'
+export enum WebhookPersistJobName {
+  WEBHOOK_PERSIST = 'webhook:persist'
 }
 
 export const defaultJobConfig: JobsOptions = {
@@ -30,10 +30,10 @@ export const defaultJobConfig: JobsOptions = {
   removeOnFail: true
 };
 
-const webhookDispatchQueue = new Queue(WEBHOOK_DISPATCH_QUEUE_NAME, {
+const webhookPersistQueue = new Queue(WEBHOOK_PERSIST_QUEUE_NAME, {
   connection: connectionOptionsIo,
-  prefix: WEBHOOK_DISPATCH_QUEUE_PREFIX,
+  prefix: WEBHOOK_PERSIST_QUEUE_PREFIX,
   ...defaultQueueConfig
 });
 
-export default webhookDispatchQueue;
+export default webhookPersistQueue;

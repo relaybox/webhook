@@ -74,7 +74,16 @@ export default class StreamMonitor extends EventEmitter {
     for (const consumer of consumers) {
       if (consumer.idle > this.consumerMaxIdleTimeMs) {
         console.log(`Consumer ${consumer.name} idle for ${consumer.idle}ms`);
-        // const claimedMessages = await this.redisClient.xClaim()
+
+        const messages = await this.redisClient.xAutoClaim(
+          this.streamKey,
+          this.groupName,
+          consumer.name,
+          this.consumerMaxIdleTimeMs,
+          '0'
+        );
+
+        console.log(messages);
       }
     }
 

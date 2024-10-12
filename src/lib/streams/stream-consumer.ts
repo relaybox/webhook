@@ -35,7 +35,6 @@ export interface StreamConsumerOptions {
   consumerName?: string;
   blockingTimeoutMs?: number;
   maxBlockingIterations?: number;
-  pollingTimeoutMs?: number;
   bufferMaxLength?: number;
 }
 
@@ -48,7 +47,6 @@ export default class StreamConsumer extends EventEmitter {
   private blockingTimeoutMs: number;
   private maxBlockingIterations: number | null;
   private currentBlockingIteration: number = 0;
-  private pollingTimeoutMs: number | null;
   private pollTimeout: NodeJS.Timeout;
   private messageBuffer: any = [];
   private bufferMaxLength: number;
@@ -61,7 +59,6 @@ export default class StreamConsumer extends EventEmitter {
     this.streamKey = opts.streamKey;
     this.groupName = opts.groupName;
     this.consumerName = opts.consumerName || DEFAULT_CONSUMER_NAME;
-    this.pollingTimeoutMs = opts.pollingTimeoutMs || null;
     this.blockingTimeoutMs = opts.blockingTimeoutMs || DEFAULT_CONSUMER_BLOCKING_TIMEOUT_MS;
     this.maxBlockingIterations = opts.maxBlockingIterations || null;
     this.bufferMaxLength = opts.bufferMaxLength || DEFAULT_BUFFER_MAX_LENGTH;
@@ -99,11 +96,7 @@ export default class StreamConsumer extends EventEmitter {
 
     await this.createConsumerGroup();
 
-    if (this.pollingTimeoutMs) {
-      this.readStream();
-    } else {
-      this.startConsumer();
-    }
+    this.startConsumer();
 
     this.logger.info(`Stream consumer is ready`);
 
@@ -206,41 +199,6 @@ export default class StreamConsumer extends EventEmitter {
     } catch (err: unknown) {
       this.logger.error('Flush message buffer failed', { err });
       this.emit('error', err);
-    }
-  }
-
-  private async readStream(): Promise<void> {
-    this.logger.debug(`Polling ${this.streamKey} stream`);
-
-    const streams = [
-      {
-        id: '>',
-        key: this.streamKey
-      }
-    ];
-
-    const options = {
-      COUNT: 10
-    };
-
-    try {
-      const data = await this.redisClient.xReadGroup(
-        this.groupName,
-        this.consumerName,
-        streams,
-        options
-      );
-
-      if (data) {
-        const messages = data.flatMap((stream: StreamConsumerData) => stream.messages);
-        this.emit('data', messages);
-      }
-    } catch (err: unknown) {
-      this.logger.error('Error consuming messages from stream:', err);
-    }
-
-    if (this.pollingTimeoutMs) {
-      this.pollTimeout = setTimeout(() => this.readStream(), this.pollingTimeoutMs);
     }
   }
 
