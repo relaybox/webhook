@@ -1,9 +1,9 @@
 import EventEmitter from 'events';
 import { getLogger } from '@/util/logger.util';
 import { Logger } from 'winston';
-import { RedisClient } from '../redis';
 import { createClient, RedisClientOptions } from 'redis';
 import { StreamConsumerMessage } from './stream-consumer';
+import { RedisClient } from './types';
 
 export interface StreamMonitorOptions {
   connectionOptions: RedisClientOptions;
@@ -75,30 +75,8 @@ export default class StreamMonitor extends EventEmitter {
     this.logger.debug(`Starting monitor`);
 
     try {
-      const consumers = await this.redisClient.xInfoConsumers(this.streamKey, this.groupName);
-
-      for (const consumer of consumers) {
-        if (consumer.idle > this.consumerMaxIdleTimeMs) {
-          this.logger.info(`Consumer ${consumer.name} idle for ${consumer.idle}ms`, {
-            consumer
-          });
-
-          const claimedMessages = await this.claimPendingMessages(consumer.name);
-
-          if (claimedMessages?.length) {
-            this.logger.debug(
-              `Claimed ${claimedMessages.length} pending messages from ${consumer.name}`,
-              { consumer }
-            );
-
-            await this.ackClaimedMessages(claimedMessages);
-
-            this.emit('data', claimedMessages);
-          }
-
-          await this.cleanConsumer(consumer.name);
-        }
-      }
+      await this.handlePendingMessages();
+      await this.handleHangingConsumers();
     } catch (err: unknown) {
       this.logger.error(`Error monitoring stream`, { err });
     }
@@ -106,23 +84,71 @@ export default class StreamMonitor extends EventEmitter {
     this.delayTimeout = setTimeout(() => this.startMonitor(), this.delayMs);
   }
 
+  private async handlePendingMessages(): Promise<void> {
+    this.logger.debug(`Handling pending messages`);
+
+    const { pending, firstId, consumers } = await this.redisClient.xPending(
+      this.streamKey,
+      this.groupName
+    );
+
+    if (!pending || !consumers?.length) {
+      this.logger.debug(`No pending messages found`);
+      return;
+    }
+
+    for (const consumer of consumers) {
+      const claimedMessages = await this.claimPendingMessages(consumer.name, firstId);
+
+      if (claimedMessages?.length) {
+        this.logger.debug(
+          `Claimed ${claimedMessages.length} pending messages from ${consumer.name}`,
+          { consumer }
+        );
+
+        await this.acknowledgeClaimedMessages(claimedMessages);
+
+        this.emit('data', claimedMessages);
+      }
+    }
+  }
+
+  private async handleHangingConsumers(): Promise<void> {
+    this.logger.debug(`Handling hanging consumers`);
+
+    const consumers = await this.redisClient.xInfoConsumers(this.streamKey, this.groupName);
+
+    for (const consumer of consumers) {
+      if (consumer.idle > this.consumerMaxIdleTimeMs) {
+        this.logger.info(`Consumer ${consumer.name} idle for ${consumer.idle}ms`, {
+          consumer
+        });
+
+        await this.cleanConsumer(consumer.name);
+      }
+    }
+  }
+
   private async claimPendingMessages(
-    consumerName: string
+    consumerName: string,
+    firstId: string | null
   ): Promise<(StreamConsumerMessage | null)[]> {
-    this.logger.debug(`Claiming pending messages from ${consumerName}`);
+    this.logger.debug(`Attempting to claim pending messages from ${consumerName}`);
 
     const data = await this.redisClient.xAutoClaim(
       this.streamKey,
       this.groupName,
       consumerName,
       this.consumerMaxIdleTimeMs,
-      '0'
+      firstId ?? '0'
     );
 
     return data.messages || [];
   }
 
-  private async ackClaimedMessages(messages: (StreamConsumerMessage | null)[]): Promise<number> {
+  private async acknowledgeClaimedMessages(
+    messages: (StreamConsumerMessage | null)[]
+  ): Promise<number> {
     const ids = messages.reduce<string[]>((acc, message) => {
       if (message) {
         acc.push(message.id);
@@ -157,6 +183,7 @@ export default class StreamMonitor extends EventEmitter {
       }
 
       if (this.redisClient.isOpen) {
+        this.redisClient.removeAllListeners();
         await this.redisClient.quit();
       }
     } catch (err) {

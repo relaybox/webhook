@@ -11,7 +11,9 @@ export async function handler(
   redisClient: RedisClient,
   streamConsumerMessage: StreamConsumerMessage
 ): Promise<void> {
-  logger.info(`Handling webhook log stream data`, { streamConsumerMessage });
+  logger.info(`Handling webhook log stream data ${streamConsumerMessage.id}`, {
+    streamConsumerMessage
+  });
 
   const pgClient = await pgPool.connect();
 
