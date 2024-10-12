@@ -210,8 +210,9 @@ export default class StreamMonitor extends EventEmitter {
         this.delayTimeout = null;
       }
 
+      this.redisClient.removeAllListeners();
+
       if (this.redisClient.isOpen) {
-        this.redisClient.removeAllListeners();
         await this.redisClient.quit();
       }
     } catch (err) {

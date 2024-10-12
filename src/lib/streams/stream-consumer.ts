@@ -132,7 +132,7 @@ export default class StreamConsumer extends EventEmitter {
         this.maxBlockingIterations &&
         this.currentBlockingIteration >= this.maxBlockingIterations
       ) {
-        this.logger.debug(`Blocking max iterations reached, breaking blocking loop`);
+        this.logger.debug(`Max blocking iterations reached, breaking loop`);
         break;
       }
 
@@ -202,8 +202,9 @@ export default class StreamConsumer extends EventEmitter {
       this.flushMessageBuffer();
       clearTimeout(this.pollTimeout);
 
+      this.redisClient.removeAllListeners();
+
       if (this.redisClient.isOpen) {
-        this.redisClient.removeAllListeners();
         await this.redisClient.quit();
       }
     } catch (err) {
