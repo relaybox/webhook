@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanupRedisClient, connectionOptions, getRedisClient, RedisClient } from '@/lib/redis';
 import StreamMonitor from '@/lib/streams/stream-monitor';
-import StreamConsumer from '@/lib/streams/stream-consumer';
+import StreamConsumer, { StreamConsumerMessage } from '@/lib/streams/stream-consumer';
 
 vi.mock('@/util/logger.util', () => ({
   getLogger: vi.fn().mockReturnValue({
@@ -37,10 +37,23 @@ describe('StreamMonitor', () => {
   let streamMonitor: StreamMonitor;
 
   beforeAll(async () => {
-    // vi.useRealTimers();
     redisClient = getRedisClient();
     await redisClient.connect();
 
+    // streamConsumer = new StreamConsumer({
+    //   ...defaultStreamMonitorOptions,
+    //   connectionOptions,
+    //   maxBlockingIterations: 3
+    // });
+
+    // await streamConsumer.connect();
+  });
+
+  afterAll(async () => {
+    await cleanupRedisClient();
+  });
+
+  beforeEach(async () => {
     streamConsumer = new StreamConsumer({
       ...defaultStreamMonitorOptions,
       connectionOptions,
@@ -50,34 +63,96 @@ describe('StreamMonitor', () => {
     await streamConsumer.connect();
   });
 
-  afterAll(async () => {
-    await cleanupRedisClient();
-  });
-
-  beforeEach(async () => {});
-
   afterEach(async () => {
     await streamMonitor.disconnect();
     await redisClient.del(LOG_STREAM_KEY);
     await streamConsumer.disconnect();
   });
 
-  it('should monitor pending messages', async () => {
+  it('should claim, acknowledge and emit pending messages', async () => {
+    const consumerMaxIdleTimeMs = 300;
+    const messageCount = 3;
+
     streamMonitor = new StreamMonitor({
       ...defaultStreamMonitorOptions,
       connectionOptions,
       delayMs: 1000,
-      consumerMaxIdleTimeMs: 100
+      consumerMaxIdleTimeMs
     });
 
-    await addMessagesToStream(3, redisClient, LOG_STREAM_KEY, {
-      data: JSON.stringify({ test: true })
+    const mockMessage = {
+      test: true
+    };
+
+    await addMessagesToStream(messageCount, redisClient, LOG_STREAM_KEY, {
+      data: JSON.stringify(mockMessage)
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await new Promise((resolve) => setTimeout(resolve, consumerMaxIdleTimeMs));
+
+    const pendingMessagesBeforeMonitor = await redisClient.xPending(
+      LOG_STREAM_KEY,
+      LOG_STREAM_GROUP_NAME
+    );
+
+    const dataPromise = new Promise<void>((resolve, reject) => {
+      streamMonitor.on('data', async (messages: StreamConsumerMessage[]) => {
+        expect(messages).toHaveLength(messageCount);
+        expect(messages).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              id: expect.any(String),
+              message: expect.objectContaining({
+                data: JSON.stringify(mockMessage)
+              })
+            })
+          ])
+        );
+
+        resolve();
+      });
+    });
 
     await streamMonitor.connect();
 
-    expect(true).toBe(true);
+    await Promise.race([dataPromise, new Promise((_, reject) => setTimeout(reject, 5000))]);
+
+    const pendingMessagesAfterMonitor = await redisClient.xPending(
+      LOG_STREAM_KEY,
+      LOG_STREAM_GROUP_NAME
+    );
+
+    expect(pendingMessagesBeforeMonitor).not.toEqual(pendingMessagesAfterMonitor);
+    expect(pendingMessagesBeforeMonitor.pending).toEqual(3);
+    expect(pendingMessagesAfterMonitor.pending).toEqual(0);
+  });
+
+  it('should cleanup hanging consumers', async () => {
+    const consumerMaxIdleTimeMs = 300;
+
+    streamMonitor = new StreamMonitor({
+      ...defaultStreamMonitorOptions,
+      connectionOptions,
+      delayMs: 1000,
+      consumerMaxIdleTimeMs
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, consumerMaxIdleTimeMs));
+
+    const consumersBeforeMonitor = await redisClient.xInfoConsumers(
+      LOG_STREAM_KEY,
+      LOG_STREAM_GROUP_NAME
+    );
+
+    await streamMonitor.connect();
+
+    const consumersAfterMonitor = await redisClient.xInfoConsumers(
+      LOG_STREAM_KEY,
+      LOG_STREAM_GROUP_NAME
+    );
+
+    expect(consumersBeforeMonitor).not.toEqual(consumersAfterMonitor);
+    expect(consumersBeforeMonitor.length).toEqual(1);
+    expect(consumersAfterMonitor.length).toEqual(0);
   });
 });

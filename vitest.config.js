@@ -19,6 +19,14 @@ export default defineConfig({
       reporter: ['text', 'html'],
       exclude: ['**/node_modules/**', '**/*.test.ts']
     },
-    logLevel: 'info'
+    sequence: {
+      shuffle: false,
+      concurrent: false
+    },
+    poolOptions: {
+      forks: {
+        singleFork: true
+      }
+    }
   }
 });
