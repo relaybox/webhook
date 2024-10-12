@@ -39,14 +39,6 @@ describe('StreamMonitor', () => {
   beforeAll(async () => {
     redisClient = getRedisClient();
     await redisClient.connect();
-
-    // streamConsumer = new StreamConsumer({
-    //   ...defaultStreamMonitorOptions,
-    //   connectionOptions,
-    //   maxBlockingIterations: 3
-    // });
-
-    // await streamConsumer.connect();
   });
 
   afterAll(async () => {
