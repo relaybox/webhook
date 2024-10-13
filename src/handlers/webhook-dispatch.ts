@@ -2,12 +2,12 @@ import { Pool } from 'pg';
 import { RedisClient } from '@/lib/redis';
 import { getLogger } from '@/util/logger.util';
 import { dispatchWebhook, enqueueWebhookLog } from '@/module/service';
-import { RegisteredWebhook, WebhookResponse } from '@/module/types';
+import { Webhook, WebhookResponse } from '@/module/types';
 
 const logger = getLogger('webhook-dispatch');
 
 interface JobData {
-  webhook: RegisteredWebhook;
+  webhook: Webhook;
   payload: any;
 }
 

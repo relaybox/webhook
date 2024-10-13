@@ -8,13 +8,14 @@ export enum WebhookEvent {
   ROOM_PUBLISH = 'room:publish'
 }
 
-export interface RegisteredWebhook {
+export interface Webhook {
   id: string;
   event: WebhookEvent;
   signingKey: string;
   url: string;
   appId: string;
   appPid: string;
+  webhookEventId: string;
 }
 
 export interface WebhookPayload {
@@ -61,6 +62,6 @@ export interface Session {
 
 export interface LogStreamMessage {
   streamId: string;
-  webhook: RegisteredWebhook;
+  webhook: Webhook;
   webhookResponse: WebhookResponse;
 }

@@ -1,5 +1,5 @@
 import { PoolClient, QueryResult } from 'pg';
-import { RegisteredWebhook, WebhookEvent, WebhookResponse } from './types';
+import { Webhook, WebhookEvent, WebhookResponse } from './types';
 
 export function getWebhooksByAppAndEvent(
   pgClient: PoolClient,
@@ -7,7 +7,7 @@ export function getWebhooksByAppAndEvent(
   event: WebhookEvent
 ): Promise<QueryResult> {
   const query = `
-    SELECT aw."appId", aw."appPid", aw.id, aw.url, aw."signingKey" 
+    SELECT aw."appId", aw."appPid", aw.id, aw.url, aw."signingKey", awe."webhookEventId" 
     FROM webhook_events we
     INNER JOIN application_webhook_events awe
     ON we.id = awe."webhookEventId" AND awe."appPid" = $1 
@@ -50,7 +50,7 @@ export function logWebhookEvent(
 
 export function insertWebhookLogsDbEntry(
   pgClient: PoolClient,
-  webhook: RegisteredWebhook,
+  webhook: Webhook,
   webhookResponse: WebhookResponse
 ): Promise<QueryResult> {
   const query = `
@@ -78,7 +78,7 @@ export function bulkInsertWebhookLogs(
 ): Promise<QueryResult> {
   const query = `
     INSERT INTO application_webhook_logs (
-      "appId", "appPid", "webhookId", "webhookRequestId", status, "statusText", "createdAt"
+      "appId", "appPid", "webhookId", "webhookEventId", "webhookRequestId", status, "statusText", "createdAt"
     )
     VALUES ${queryPlaceholders} 
     ON CONFLICT 

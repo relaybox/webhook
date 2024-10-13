@@ -6,7 +6,7 @@ import * as db from './db';
 import * as repository from './repository';
 import {
   LogStreamMessage,
-  RegisteredWebhook,
+  Webhook,
   webhookLogsDbEntry,
   WebhookEvent,
   WebhookPayload,
@@ -17,7 +17,7 @@ import webhookDispatchQueue, {
   WebhookDispatchJobName
 } from './queues/dispatch';
 import { RedisClient } from '@/lib/redis';
-import { StreamConsumerData, StreamConsumerMessage } from '@/lib/streams/stream-consumer';
+import { StreamConsumerMessage } from '@/lib/streams/stream-consumer';
 import { LOG_STREAM_KEY } from './consumer';
 
 const SIGNATURE_HASHING_ALGORITHM = 'sha256';
@@ -48,7 +48,7 @@ export async function getWebhooksByAppAndEvent(
   pgClient: PoolClient,
   appPid: string,
   event: WebhookEvent
-): Promise<RegisteredWebhook[] | undefined> {
+): Promise<Webhook[] | undefined> {
   try {
     const { rows: webhooks } = await db.getWebhooksByAppAndEvent(pgClient, appPid, event);
 
@@ -64,13 +64,13 @@ export async function getWebhooksByAppAndEvent(
 
 export async function enqueueRegisteredWebhooks(
   logger: Logger,
-  registeredWebhooks: RegisteredWebhook[],
+  registeredWebhooks: Webhook[],
   payload: WebhookPayload
 ): Promise<Job[]> {
   logger.debug(`Enqueuing ${registeredWebhooks.length} webhook(s)`);
 
   return Promise.all(
-    registeredWebhooks.map(async (webhook: RegisteredWebhook) => {
+    registeredWebhooks.map(async (webhook: Webhook) => {
       const jobData = {
         webhook,
         payload
@@ -87,7 +87,7 @@ export async function enqueueRegisteredWebhooks(
 
 export async function dispatchWebhook(
   logger: Logger,
-  webhook: RegisteredWebhook,
+  webhook: Webhook,
   payload: WebhookPayload
 ): Promise<WebhookResponse> {
   logger.debug(`Dispatching webhook`, { webhook });
@@ -132,7 +132,7 @@ export async function dispatchWebhook(
 export async function enqueueWebhookLog(
   logger: Logger,
   redisClient: RedisClient,
-  webhook: RegisteredWebhook,
+  webhook: Webhook,
   webhookResponse: WebhookResponse
 ): Promise<void> {
   logger.debug(`Enqueuing webhook log`, { webhook, webhookResponse });
@@ -148,7 +148,7 @@ export async function enqueueWebhookLog(
 export async function logWebhookEvent(
   logger: Logger,
   pgClient: PoolClient,
-  webhook: RegisteredWebhook,
+  webhook: Webhook,
   webhookResponse: WebhookResponse
 ): Promise<void> {
   logger.debug(`Logging webhook event`, { webhook, webhookResponse });
@@ -169,25 +169,6 @@ export async function logWebhookEvent(
   } catch (err: unknown) {
     logger.error(`Failed to log webhook event`, { err });
   }
-}
-
-export function parseRawLogStream(
-  logger: Logger,
-  streams: StreamConsumerData[],
-  streamKey: string
-): LogStreamMessage[] {
-  logger.debug(`Parsing ${streams.length} log stream message(s)`);
-
-  const stream = streams.find((stream: StreamConsumerData) => stream.name === streamKey);
-
-  if (!stream) {
-    throw new Error(`Stream not found for key ${streamKey}`);
-  }
-
-  return stream?.messages.map((streamMessageData: StreamConsumerMessage) => ({
-    streamId: streamMessageData.id,
-    ...JSON.parse(streamMessageData.message.data)
-  }));
 }
 
 export function parseStreamConsumerMessage(
@@ -239,6 +220,7 @@ export function parseWebhookLogsDbEntries(
         webhook.appId,
         webhook.appPid,
         webhook.id,
+        webhook.webhookEventId,
         webhookResponse.id,
         webhookResponse.status,
         webhookResponse.statusText,
@@ -255,14 +237,14 @@ export function parseWebhookLogsDbEntries(
 export async function bulkInsertWebhookLogs(
   logger: Logger,
   pgClient: PoolClient,
-  parsedLogStreamMessages: webhookLogsDbEntry[]
+  parsedLogStreamDbEntries: webhookLogsDbEntry[]
 ): Promise<void> {
-  logger.debug(`Bulk inserting ${parsedLogStreamMessages.length} webhook log(s)`);
+  logger.debug(`Bulk inserting ${parsedLogStreamDbEntries.length} webhook log(s)`);
 
   try {
-    const placeholdersPerRow = parsedLogStreamMessages[0].length;
+    const placeholdersPerRow = parsedLogStreamDbEntries[0].length;
 
-    const queryPlaceholders = parsedLogStreamMessages.map((_, i) => {
+    const queryPlaceholders = parsedLogStreamDbEntries.map((_, i) => {
       const baseIndex = i * placeholdersPerRow + 1;
       const arrayParams = { length: placeholdersPerRow };
       const placeholders = Array.from(arrayParams, (_, j) => `$${baseIndex + j}`);
@@ -270,7 +252,7 @@ export async function bulkInsertWebhookLogs(
       return `(${placeholders.join(', ')})`;
     });
 
-    const values = parsedLogStreamMessages.flat();
+    const values = parsedLogStreamDbEntries.flat();
 
     await db.bulkInsertWebhookLogs(pgClient, queryPlaceholders, values);
   } catch (err: unknown) {
