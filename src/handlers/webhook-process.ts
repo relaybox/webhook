@@ -11,22 +11,26 @@ export async function handler(
   redisClient: RedisClient,
   payload: WebhookPayload
 ): Promise<void> {
-  logger.info(`Processing webhook`);
-
   const pgClient = await pgPool.connect();
 
   try {
     const { data, session, event, filterAttributes } = payload;
+
     const { appPid } = session;
+
+    logger.info(`Processing webhook for app ${appPid}, ${event}`, {
+      appPid,
+      event,
+      session
+    });
 
     const registeredWebhooks = await getWebhooksByAppAndEvent(logger, pgClient, appPid, event);
 
-    if (!registeredWebhooks) {
-      logger.debug(`No registered webhooks found for app ${appPid}`);
+    if (!registeredWebhooks?.length) {
       return;
     }
 
-    logger.debug(`${registeredWebhooks.length} webhook(s) found for app ${appPid}`, {
+    logger.info(`${registeredWebhooks.length} webhook(s) found for app ${appPid}, ${event}`, {
       registeredWebhooks
     });
 

@@ -52,10 +52,6 @@ export async function getWebhooksByAppAndEvent(
   try {
     const { rows: webhooks } = await db.getWebhooksByAppAndEvent(pgClient, appPid, event);
 
-    if (!webhooks.length) {
-      logger.debug(`No registered webhooks found for appPid ${appPid}, ${event}`);
-    }
-
     return webhooks;
   } catch (err: any) {
     throw new Error(`Failed to get registered webhooks, ${err.message}`);

@@ -12,7 +12,7 @@ export function getWebhooksByAppAndEvent(
     INNER JOIN application_webhook_events awe
     ON we.id = awe."webhookEventId" AND awe."appPid" = $1 
     INNER JOIN application_webhooks aw 
-    ON awe."webhookId" = aw.id AND aw.enabled IS TRUE
+    ON awe."webhookId" = aw.id AND aw.enabled IS TRUE AND aw."deletedAt" IS NULL
     WHERE we.type = $2;
   `;
 

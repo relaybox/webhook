@@ -25,7 +25,7 @@ export async function handler(
   try {
     webhookResponse = await dispatchWebhook(logger, webhook, payload);
   } catch (err: unknown) {
-    logger.error(`Failed to dispatch webhook event`, { err });
+    logger.error(`Failed to dispatch webhook event`, { webhook, err });
 
     const statusText = err instanceof Error ? err.message : 'Unable to dispatch webhook';
 
