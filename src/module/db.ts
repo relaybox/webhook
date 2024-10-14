@@ -7,7 +7,7 @@ export function getWebhooksByAppAndEvent(
   event: WebhookEvent
 ): Promise<QueryResult> {
   const query = `
-    SELECT aw."appId", aw."appPid", aw.id, aw.url, aw."signingKey", awe."webhookEventId" 
+    SELECT aw."appId", aw."appPid", aw.id, aw.url, aw."signingKey", aw.headers, awe."webhookEventId"
     FROM webhook_events we
     INNER JOIN application_webhook_events awe
     ON we.id = awe."webhookEventId" AND awe."appPid" = $1 

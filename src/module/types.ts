@@ -8,6 +8,11 @@ export enum WebhookEvent {
   ROOM_PUBLISH = 'room:publish'
 }
 
+export interface WebhookHeadersKeyPair {
+  keyName: string;
+  value: string;
+}
+
 export interface Webhook {
   id: string;
   event: WebhookEvent;
@@ -16,6 +21,7 @@ export interface Webhook {
   appId: string;
   appPid: string;
   webhookEventId: string;
+  headers: WebhookHeadersKeyPair[];
 }
 
 export interface WebhookPayload {

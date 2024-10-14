@@ -10,7 +10,8 @@ import {
   webhookLogsDbEntry,
   WebhookEvent,
   WebhookPayload,
-  WebhookResponse
+  WebhookResponse,
+  WebhookHeadersKeyPair
 } from './types';
 import webhookDispatchQueue, {
   defaultJobConfig as dispatchQueueDefaultJobConfig,
@@ -81,6 +82,25 @@ export async function enqueueRegisteredWebhooks(
   );
 }
 
+export function parseWebhookHeaders(
+  logger: Logger,
+  headers: WebhookHeadersKeyPair[]
+): Record<string, string> {
+  try {
+    if (!headers?.length) {
+      return {};
+    }
+
+    return headers.reduce<Record<string, string>>((acc, { keyName, value }) => {
+      acc[keyName] = value.toString();
+      return acc;
+    }, {});
+  } catch (err: unknown) {
+    logger.error(`Failed to parse webhook headers`, { err });
+    throw err;
+  }
+}
+
 export async function dispatchWebhook(
   logger: Logger,
   webhook: Webhook,
@@ -89,15 +109,18 @@ export async function dispatchWebhook(
   logger.debug(`Dispatching webhook`, { webhook });
 
   const { id, data } = payload;
-  const { url, signingKey } = webhook;
+  const { url, signingKey, headers: webhookHeaders } = webhook;
 
   try {
+    const parsedWebhookHeaders = parseWebhookHeaders(logger, webhookHeaders);
     const stringToSign = JSON.stringify(data);
     const requestSignature = generateRequestSignature(stringToSign, signingKey);
 
     const headers = {
+      ...parsedWebhookHeaders,
       'Content-Type': 'application/json',
-      'X-Relaybox-Webhook-Signature': requestSignature
+      'X-RelayBox-Webhook-Signature': requestSignature,
+      'X-RelayBox-Webhook-Id': webhook.id
     };
 
     const requestOptions = {
