@@ -21,7 +21,7 @@ export interface Webhook {
   appId: string;
   appPid: string;
   webhookEventId: string;
-  headers: WebhookHeadersKeyPair[];
+  headers?: WebhookHeadersKeyPair[];
 }
 
 export interface WebhookPayload {

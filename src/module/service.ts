@@ -84,7 +84,7 @@ export async function enqueueRegisteredWebhooks(
 
 export function parseWebhookHeaders(
   logger: Logger,
-  headers: WebhookHeadersKeyPair[]
+  headers?: WebhookHeadersKeyPair[]
 ): Record<string, string> {
   try {
     if (!headers?.length) {
