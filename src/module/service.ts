@@ -101,6 +101,19 @@ export function parseWebhookHeaders(
   }
 }
 
+export function parseWebhookPayload(logger: Logger, payload: WebhookPayload): WebhookPayload {
+  try {
+    const timestamp = new Date().toISOString();
+
+    const { id, event, data, session } = payload;
+
+    return { id, event, data, session, timestamp };
+  } catch (err: unknown) {
+    logger.error(`Failed to parse webhook payload`, { err });
+    throw err;
+  }
+}
+
 export async function dispatchWebhook(
   logger: Logger,
   webhook: Webhook,

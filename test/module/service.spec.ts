@@ -25,11 +25,14 @@ const logger = getLogger('webhook-service');
 
 const server = setupServer();
 
-// const mockRepository = vi.hoisted(() => ({
-//   getCachedRooms: vi.fn()
-// }));
-
-// vi.mock('@/module/repository', () => mockRepository);
+vi.mock('@/util/logger.util', () => ({
+  getLogger: vi.fn().mockReturnValue({
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn()
+  })
+}));
 
 const mockDb = vi.hoisted(() => ({
   bulkInsertWebhookLogs: vi.fn()

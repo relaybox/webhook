@@ -1,7 +1,7 @@
 import { Pool } from 'pg';
 import { RedisClient } from '@/lib/redis';
 import { getLogger } from '@/util/logger.util';
-import { dispatchWebhook, enqueueWebhookLog } from '@/module/service';
+import { dispatchWebhook, enqueueWebhookLog, parseWebhookPayload } from '@/module/service';
 import { Webhook, WebhookResponse } from '@/module/types';
 
 const logger = getLogger('webhook-dispatch');
@@ -23,7 +23,8 @@ export async function handler(
   logger.info(`Dispatching webhook`, { webhook });
 
   try {
-    webhookResponse = await dispatchWebhook(logger, webhook, payload);
+    const parsedPayload = parseWebhookPayload(logger, payload);
+    webhookResponse = await dispatchWebhook(logger, webhook, parsedPayload);
   } catch (err: unknown) {
     logger.error(`Failed to dispatch webhook event`, { webhook, err });
 
