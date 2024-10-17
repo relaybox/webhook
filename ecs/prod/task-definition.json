@@ -23,10 +23,6 @@
           "value": "${AWS_REGION}"
         },
         {
-          "name": "CRON_SCHEDULE_MINS",
-          "value": "${CRON_SCHEDULE_MINS}"
-        },
-        {
           "name": "DB_HOST",
           "value": "${DB_HOST}"
         },
@@ -55,14 +51,6 @@
           "value": "${DB_USER}"
         },
         {
-          "name": "RABBIT_MQ_CONNECTION_STRING",
-          "value": "${RABBIT_MQ_CONNECTION_STRING}"
-        },
-        {
-          "name": "RABBIT_MQ_QUEUE_COUNT",
-          "value": "${RABBIT_MQ_QUEUE_COUNT}"
-        },
-        {
           "name": "REDIS_HOST",
           "value": "${REDIS_HOST}"
         },
@@ -71,8 +59,16 @@
           "value": "${REDIS_PORT}"
         },
         {
-          "name": "WS_IDLE_TIMEOUT_MS",
-          "value": "${WS_IDLE_TIMEOUT_MS}"
+          "name": "LOG_LEVEL",
+          "value": "${LOG_LEVEL}"
+        },
+        {
+          "name": "LOG_STREAM_MAX_LEN",
+          "value": "${LOG_STREAM_MAX_LEN}"
+        },
+        {
+          "name": "LOG_STREAM_BUFFER_MAX_LENGTH",
+          "value": "${LOG_STREAM_BUFFER_MAX_LENGTH}"
         }
       ],
       "secrets": [
