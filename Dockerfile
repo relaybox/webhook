@@ -11,4 +11,4 @@ WORKDIR /src
 ENV NODE_ENV=production
 ENV TZ=UTC
 COPY --from=builder /src /src
-CMD ["node", "http.js"]
+CMD ["node", "index.js"]
