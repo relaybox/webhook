@@ -12,6 +12,8 @@ import { WEBHOOK_PROCESS_QUEUE_NAME } from './module/queues/process';
 import StreamMonitor from './lib/streams/stream-monitor';
 import { WEBHOOK_PERSIST_QUEUE_NAME } from './module/queues/persist';
 
+// FORCE v2
+
 const logger = getLogger('webhook-service');
 const pgPool = getPgPool();
 const redisClient = getRedisClient();
