@@ -5,12 +5,12 @@ const pkg = require('./package.json');
 
 esbuild
   .build({
-    entryPoints: ['src/index.ts'],
+    entryPoints: ['src/index.ts', 'src/http.ts'],
     bundle: true,
     platform: 'node',
     target: 'node20',
-    outfile: 'build/index.js',
-    // outdir: 'build',
+    // outfile: 'build/index.js',
+    outdir: 'build',
     external: [...Object.keys(pkg.dependencies || {})],
     plugins: [],
     minify: true,
