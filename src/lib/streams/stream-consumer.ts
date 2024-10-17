@@ -58,7 +58,7 @@ export default class StreamConsumer extends EventEmitter {
 
     this.logger = getLogger(`stream-consumer:${this.consumerName}`);
 
-    this.logger.info(`Stream consumer ready`);
+    this.logger.info(`Stream consumer initialized`);
   }
 
   async connect(): Promise<StreamConsumer> {
@@ -70,19 +70,19 @@ export default class StreamConsumer extends EventEmitter {
     };
 
     this.redisClient.on('connect', () => {
-      this.logger.info(`Stream consumer client connected`, logData);
+      this.logger.info(`Redis stream-consumer client connected`, logData);
     });
 
     this.redisClient.on('error', (err) => {
-      this.logger.error(`Stream consumer client error`, { ...logData, err });
+      this.logger.error(`Redis stream-consumer client error`, { ...logData, err });
     });
 
     this.redisClient.on('ready', () => {
-      this.logger.info(`Stream consumer client ready`, logData);
+      this.logger.info(`Redis stream-consumer client ready`, logData);
     });
 
     this.redisClient.on('end', () => {
-      this.logger.info(`Stream consumer client disconnected`, logData);
+      this.logger.info(`Redis stream-consumer client disconnected`, logData);
     });
 
     await this.redisClient.connect();

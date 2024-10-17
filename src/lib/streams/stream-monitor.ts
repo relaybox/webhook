@@ -127,7 +127,7 @@ export default class StreamMonitor extends EventEmitter {
     const consumers = await this.redisClient.xInfoConsumers(this.streamKey, this.groupName);
 
     if (!consumers?.length) {
-      this.logger.debug(`No consumers found`);
+      this.logger.warn(`No consumers found`);
       return;
     }
 

@@ -27,6 +27,7 @@ export async function handler(
     const registeredWebhooks = await getWebhooksByAppAndEvent(logger, pgClient, appPid, event);
 
     if (!registeredWebhooks?.length) {
+      logger.debug(`No registered webhooks found for app ${appPid}`);
       return;
     }
 
