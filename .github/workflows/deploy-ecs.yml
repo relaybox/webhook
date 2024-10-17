@@ -49,22 +49,21 @@ jobs:
           AWS_REGION: ${{ vars.AWS_REGION }}
           AWS_ECS_EXECUTION_ROLE_ARN: ${{ secrets.AWS_ECS_EXECUTION_ROLE_ARN }}
           AWS_ECS_TASK_ROLE_ARN: ${{ secrets.AWS_ECS_TASK_ROLE_ARN }}
-          CRON_SCHEDULE_MINS: ${{ vars.CRON_SCHEDULE_MINS }}
           DB_HOST: ${{ secrets.DB_HOST }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_PROXY_ENABLED: ${{ vars.DB_PROXY_ENABLED }}
           DB_IDLE_TIMEOUT_MS: ${{ vars.DB_IDLE_TIMEOUT_MS }}
           DB_MAX_CONNECTIONS: ${{ vars.DB_MAX_CONNECTIONS }}
-          DB_USER: ${{ secrets.DB_USER }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_PASSWORD_ARN: ${{ secrets.DB_PASSWORD_ARN }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_PROXY_ENABLED: ${{ vars.DB_PROXY_ENABLED }}
           DB_TLS_DISABLED: ${{ vars.DB_TLS_DISABLED }}
-          RABBIT_MQ_CONNECTION_STRING: ${{ secrets.RABBIT_MQ_CONNECTION_STRING }}
-          RABBIT_MQ_QUEUE_COUNT: ${{ vars.RABBIT_MQ_QUEUE_COUNT }}
+          DB_USER: ${{ secrets.DB_USER }}
+          LOG_LEVEL: ${{ vars.LOG_LEVEL }}
+          LOG_STREAM_BUFFER_MAX_LENGTH: ${{ vars.LOG_STREAM_BUFFER_MAX_LENGTH }}
+          LOG_STREAM_MAX_LEN: ${{ vars.LOG_STREAM_MAX_LEN }}
+          REDIS_AUTH_ARN: ${{ secrets.REDIS_AUTH_ARN }}
           REDIS_HOST: ${{ secrets.REDIS_HOST }}
           REDIS_PORT: ${{ secrets.REDIS_PORT }}
-          REDIS_AUTH_ARN: ${{ secrets.REDIS_AUTH_ARN }}
-          WS_IDLE_TIMEOUT_MS: ${{ vars.WS_IDLE_TIMEOUT_MS }}
-          DB_PASSWORD_ARN: ${{ secrets.DB_PASSWORD_ARN }}
           RDS_ROOT_CERTIFICATE_ARN: ${{ secrets.RDS_ROOT_CERTIFICATE_ARN }}
         run: |
           envsubst < ecs/${{vars.STAGE}}/task-definition.json > ecs-task-definition.json
