@@ -9,5 +9,6 @@ COPY /build /src
 FROM node:20-alpine
 WORKDIR /src
 ENV NODE_ENV=production
+ENV TZ=UTC
 COPY --from=builder /src /src
 CMD ["node", "http.js"]
