@@ -10,4 +10,4 @@ FROM node:20-alpine
 WORKDIR /src
 ENV NODE_ENV=production
 COPY --from=builder /src /src
-CMD ["node", "index.js"]
+CMD ["node", "http.js"]

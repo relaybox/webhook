@@ -22,15 +22,15 @@ jobs:
       service-name: webhook
     secrets: inherit
 
-  deploy-ecs:
-    name: Deploy
-    uses: ./.github/workflows/deploy-ecs.yml
-    needs: build-push-ecr
-    with:
-      environment: development
-      ecr-image: ${{ needs.build-push-ecr.outputs.ecr-image }}
-      cluster-name: core-services
-      service-name: webhook
-      cluster-suffix: g8M6HWc0Cdph
-      service-suffix: nRbrd4FYxrs8
-    secrets: inherit
+  # deploy-ecs:
+  #   name: Deploy
+  #   uses: ./.github/workflows/deploy-ecs.yml
+  #   needs: build-push-ecr
+  #   with:
+  #     environment: development
+  #     ecr-image: ${{ needs.build-push-ecr.outputs.ecr-image }}
+  #     cluster-name: core-services
+  #     service-name: webhook
+  #     cluster-suffix: g8M6HWc0Cdph
+  #     service-suffix: nRbrd4FYxrs8
+  #   secrets: inherit
