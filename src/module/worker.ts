@@ -27,7 +27,7 @@ export function startWorker(
     concurrency
   };
 
-  logger.info(`Creating ${queueName} worker`, { config: workerConfig });
+  logger.info(`Creating ${queueName} worker`);
 
   const worker = new Worker(
     queueName,
