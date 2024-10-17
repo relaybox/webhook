@@ -4,7 +4,8 @@ import { createClient, RedisClientOptions } from 'redis';
 import { getLogger } from '@/util/logger.util';
 import { RedisClient } from './types';
 
-const DEFAULT_CONSUMER_NAME = `consumer-${process.pid}`;
+const CONTAINER_HOSTNAME = process.env.HOSTNAME || 'local';
+const DEFAULT_CONSUMER_NAME = `consumer-${CONTAINER_HOSTNAME}-${process.pid}`;
 const DEFAULT_BUFFER_MAX_LENGTH = 10;
 const DEFAULT_CONSUMER_BLOCKING_TIMEOUT_MS = 10000;
 
