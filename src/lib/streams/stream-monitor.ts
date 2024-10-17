@@ -197,7 +197,7 @@ export default class StreamMonitor extends EventEmitter {
         strategyModifier: '~'
       });
     } catch (err: unknown) {
-      this.logger.error('Error trimming stream', { err });
+      this.logger.error('Error trimming stream', err);
     }
   }
 
