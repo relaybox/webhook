@@ -24,7 +24,7 @@ import { LOG_STREAM_KEY } from './consumer';
 const SIGNATURE_HASHING_ALGORITHM = 'sha256';
 const SIGNATURE_BUFFER_ENCODING = 'utf-8';
 const SIGNTURE_DIGEST = 'hex';
-const DEFAULT_REQUEST_TIMEOUT_MS = 100;
+const DEFAULT_REQUEST_TIMEOUT_MS = 5000;
 const RETRYABLE_ERROR_CODES = [429, 500, 502];
 
 export function generateRequestSignature(stringToSign: string, signingKey: string): string {
