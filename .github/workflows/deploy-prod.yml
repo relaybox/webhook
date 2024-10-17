@@ -52,7 +52,7 @@ jobs:
       cluster-name: core-services
       service-name: webhook
       cluster-suffix: 9pkS9BJE3t40
-      service-suffix: HcnXKEogkl4w
+      service-suffix: hxLqfvk2vAxR
     secrets: inherit
 
   publish-multi-platform-image:
