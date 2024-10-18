@@ -7,7 +7,7 @@ import { RedisClient } from './types';
 const CONTAINER_HOSTNAME = process.env.HOSTNAME || 'local';
 const DEFAULT_CONSUMER_NAME = `consumer-${CONTAINER_HOSTNAME}-${process.pid}`;
 const DEFAULT_BUFFER_MAX_LENGTH = 10;
-const DEFAULT_CONSUMER_BLOCKING_TIMEOUT_MS = 10000;
+const DEFAULT_CONSUMER_BLOCKING_TIMEOUT_MS = 30000;
 
 export interface StreamConsumerData {
   name: string;
