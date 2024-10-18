@@ -59,9 +59,9 @@ export async function startLogStreamMonitor(
     connectionOptions,
     streamKey: LOG_STREAM_KEY,
     groupName: LOG_STREAM_GROUP_NAME,
-    consumerMaxIdleTimeMs: 30000,
+    consumerMaxIdleTimeMs: 60000,
     streamMaxLength: LOG_STREAM_MAX_LEN,
-    delayMs: 60000
+    delayMs: 120000
   });
 
   streamMonitor.on('data', async (messages: StreamConsumerMessage[]) => {
