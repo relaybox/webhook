@@ -14,7 +14,8 @@ import {
   generateRequestSignature,
   parseStreamConsumerMessage,
   parseWebhookHeaders,
-  parseWebhookLogsDbEntries
+  parseWebhookLogsDbEntries,
+  serializeWebhookData
 } from '@/module/service';
 import { getLogger } from '@/util/logger.util';
 import { setupServer } from 'msw/node';
@@ -172,6 +173,28 @@ describe('service', () => {
       await bulkInsertWebhookLogs(logger, {} as PoolClient, parsedWebhookLogsDbEntries);
 
       expect(mockDb.bulkInsertWebhookLogs).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('serializeWebhookData', () => {
+    it('should canonically serialize json data', () => {
+      const data = {
+        z: 98,
+        a: 123,
+        c: 5
+      };
+
+      const serializedData = serializeWebhookData(logger, data);
+
+      expect(serializedData).toEqual('"{\\"a\\":123,\\"c\\":5,\\"z\\":98}"');
+    });
+
+    it('should canonically serialize string data', () => {
+      const data = 'random string';
+
+      const serializedData = serializeWebhookData(logger, data);
+
+      expect(serializedData).toEqual('"\\"random string\\""');
     });
   });
 
