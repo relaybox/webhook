@@ -122,12 +122,12 @@ export async function dispatchWebhook(
 ): Promise<WebhookResponse> {
   logger.debug(`Dispatching webhook`, { webhook });
 
-  const { id, data } = payload;
+  const { id } = payload;
   const { url, signingKey, headers: webhookHeaders } = webhook;
 
   try {
     const parsedWebhookHeaders = parseWebhookHeaders(logger, webhookHeaders);
-    const stringToSign = serializeWebhookData(logger, data);
+    const stringToSign = serializeWebhookData(logger, payload);
     const requestSignature = generateRequestSignature(stringToSign, signingKey);
 
     const headers = {
