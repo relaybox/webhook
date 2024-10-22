@@ -20,6 +20,7 @@ import webhookDispatchQueue, {
 import { RedisClient } from '@/lib/redis';
 import { StreamConsumerMessage } from '@/lib/streams/stream-consumer';
 import { LOG_STREAM_KEY } from './consumer';
+import { canonicalize, canonicalizeEx } from 'json-canonicalize';
 
 const SIGNATURE_HASHING_ALGORITHM = 'sha256';
 const SIGNATURE_BUFFER_ENCODING = 'utf-8';
@@ -126,7 +127,7 @@ export async function dispatchWebhook(
 
   try {
     const parsedWebhookHeaders = parseWebhookHeaders(logger, webhookHeaders);
-    const stringToSign = JSON.stringify(data);
+    const stringToSign = serializeWebhookData(logger, data);
     const requestSignature = generateRequestSignature(stringToSign, signingKey);
 
     const headers = {
@@ -327,5 +328,18 @@ export async function ackStreamMessages(
     logger.info(`Acknowledged ${ids.length} log stream message(s)`);
   } catch (err) {
     logger.error('Error processing messages:', err);
+  }
+}
+
+export function serializeWebhookData(logger: Logger, data: any): string {
+  logger.debug(`Serializing webhook data`, { data });
+
+  try {
+    const canonicalizedData = canonicalize(data);
+    const serializedData = JSON.stringify(canonicalizedData);
+    return serializedData;
+  } catch (err: unknown) {
+    logger.error(`Failed to serialize webhook data`, { err });
+    throw err;
   }
 }
