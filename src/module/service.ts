@@ -20,11 +20,11 @@ import webhookDispatchQueue, {
 import { RedisClient } from '@/lib/redis';
 import { StreamConsumerMessage } from '@/lib/streams/stream-consumer';
 import { LOG_STREAM_KEY } from './consumer';
-import { canonicalize, canonicalizeEx } from 'json-canonicalize';
+import { canonicalize } from 'json-canonicalize';
 
 const SIGNATURE_HASHING_ALGORITHM = 'sha256';
 const SIGNATURE_BUFFER_ENCODING = 'utf-8';
-const SIGNTURE_DIGEST = 'hex';
+const SIGNATURE_DIGEST = 'hex';
 const DEFAULT_REQUEST_TIMEOUT_MS = 5000;
 const RETRYABLE_ERROR_CODES = [429, 500, 502];
 
@@ -37,7 +37,7 @@ export function generateRequestSignature(stringToSign: string, signingKey: strin
     const buffer = Buffer.from(stringToSign, SIGNATURE_BUFFER_ENCODING);
     const signature = createHmac(SIGNATURE_HASHING_ALGORITHM, signingKey)
       .update(buffer)
-      .digest(SIGNTURE_DIGEST);
+      .digest(SIGNATURE_DIGEST);
 
     return signature;
   } catch (err: any) {
