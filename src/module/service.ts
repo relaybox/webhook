@@ -26,7 +26,7 @@ const SIGNATURE_HASHING_ALGORITHM = 'sha256';
 const SIGNATURE_BUFFER_ENCODING = 'utf-8';
 const SIGNATURE_DIGEST = 'hex';
 const DEFAULT_REQUEST_TIMEOUT_MS = 5000;
-const RETRYABLE_ERROR_CODES = [429, 500, 502];
+const RETRYABLE_ERROR_CODES = [429, 500, 502, 503, 504];
 
 export function generateRequestSignature(stringToSign: string, signingKey: string): string {
   if (!stringToSign || !signingKey) {
